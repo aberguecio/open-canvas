@@ -1,40 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+## About
 
-## Getting Started
+This project was created with [express-generator-typescript](https://github.com/seanpmaxwell/express-generator-typescript).
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+**IMPORTANT** for demo purposes I had to disable `helmet` in production. In any real world app you should change these 3 lines of code in `src/server.ts`:
+```ts
+// eslint-disable-next-line n/no-process-env
+if (!process.env.DISABLE_HELMET) {
+  app.use(helmet());
+}
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+To just this:
+```ts
+app.use(helmet());
+```
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+## Available Scripts
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+### `npm run clean-install`
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Remove the existing `node_modules/` folder, `package-lock.json`, and reinstall all library modules.
 
-## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+### `npm run dev` or `npm run dev:hot` (hot reloading)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
+Run the server in development mode.<br/>
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**IMPORTANT** development mode uses `swc` for performance reasons which DOES NOT check for typescript errors. Run `npm run type-check` to check for type errors. NOTE: you should use your IDE to prevent most type errors.
 
-## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### `npm test` or `npm run test:hot` (hot reloading)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+Run all unit-tests.
+
+
+### `npm test -- "name of test file" (i.e. users).`
+
+Run a single unit-test.
+
+
+### `npm run lint`
+
+Check for linting errors.
+
+
+### `npm run build`
+
+Build the project for production.
+
+
+### `npm start`
+
+Run the production build (Must be built first).
+
+
+### `npm run type-check`
+
+Check for typescript errors.
+
+
+## Additional Notes
+
+- If `npm run dev` gives you issues with bcrypt on MacOS you may need to run: `npm rebuild bcrypt --build-from-source`. 

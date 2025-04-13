@@ -1,12 +1,10 @@
 # backend/Dockerfile
 FROM node:23-alpine
-WORKDIR /app
 
+WORKDIR /app
 COPY package*.json ./
 RUN npm install
-
 COPY . .
 
-RUN npm run build
-
-EXPOSE 4000
+# desarrollo por defecto (hot‑reload)
+CMD ["npm", "run", "dev"]
