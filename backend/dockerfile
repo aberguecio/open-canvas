@@ -1,14 +1,9 @@
-FROM node:23-alpine
+FROM node:20-bullseye
 
 WORKDIR /app
 COPY package*.json ./
-
-RUN npm install --save-dev ts-node-dev tsconfig-paths
-
-RUN npm pkg set scripts.dev="ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/index.ts"
-
 RUN npm install
-
+COPY prisma ./prisma
 COPY . .
-
-CMD ["npx", "ts-node-dev", "--respawn", "--transpile-only", "-r", "tsconfig-paths/register", "src/index.ts"]
+RUN npx prisma generate
+CMD ["npm", "run", "dev"]

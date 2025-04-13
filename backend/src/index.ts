@@ -1,14 +1,16 @@
-import logger from 'jet-logger';
+import express from 'express';
+import { prisma } from './prisma';
 
-import ENV from '@src/constants/ENV';
-import server from './server';
+const app = express();
+app.use(express.json());
 
+app.get('/api/users', async (_req, res) => {
+  res.json(await prisma.user.findMany());
+});
 
-/******************************************************************************
-                                  Run
-******************************************************************************/
+app.post('/api/users', async (req, res) => {
+  const user = await prisma.user.create({ data: req.body });
+  res.status(201).json(user);
+});
 
-const SERVER_START_MSG = ('Express server started on port: ' + 
-  ENV.Port.toString());
-
-server.listen(ENV.Port, () => logger.info(SERVER_START_MSG));
+app.listen(3000, () => console.log('🚀 API on :3000'));
