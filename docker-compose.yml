@@ -8,16 +8,14 @@ services:
       - ./frontend:/app
       - /app/node_modules
     command: npm run dev -- --host
-    environment:
-      - VITE_API_URL=http://localhost:4000/api
 
   backend:
     build: ./backend
     ports:
-      - "4000:4000"
+      - "4000:3000"
     volumes:
       - ./backend:/app
       - /app/node_modules
     env_file:
       - ./backend/.env        # aquí van tus claves AWS
-    command: npm run dev
+    #command: npm run dev
