@@ -13,8 +13,9 @@ model User {
   email String @unique
 }
 
-model Images {
-  id    Int    @id @default(autoincrement())
-  link String
-  autor String
+model Image {
+  id        Int      @id @default(autoincrement())
+  url       String
+  name      String
+  createdAt DateTime @default(now())
 }
