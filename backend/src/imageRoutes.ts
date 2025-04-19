@@ -7,7 +7,14 @@ import { prisma } from './prisma';
 import { s3 } from './s3Client';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Solo se permiten imágenes'), false);
+  }
+});
 
 // GET /api/images
 router.get('/', async (_req, res) => {

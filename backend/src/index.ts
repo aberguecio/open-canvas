@@ -9,7 +9,7 @@ const app = express();
 app.use(express.json());
 
 app.use(cors({
-  origin: 'http://localhost:5173',  // o '*' si quieres permitir desde cualquier origen
+  origin: process.env.VITE_API_URL,  // o '*' si quieres permitir desde cualquier origen
   methods: ['GET','POST','DELETE'],
   allowedHeaders: ['Content-Type']
 }));
