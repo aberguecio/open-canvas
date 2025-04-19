@@ -1,54 +1,78 @@
 // src/imageRoutes.ts
 import { Router } from 'express';
 import multer from 'multer';
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { prisma } from './prisma';
 import { s3 } from './s3Client';
-import crypto from 'crypto';
 
 const router = Router();
-
-// configuramos multer para guardar el fichero en memoria
 const upload = multer({ storage: multer.memoryStorage() });
 
+// GET /api/images
 router.get('/', async (_req, res) => {
-  const images = await prisma.image.findMany({ orderBy: { createdAt: 'desc' } });
-  res.json(images);
+  const images = await prisma.image.findMany({
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const signed = await Promise.all(
+    images.map(async (img) => {
+      const cmd = new GetObjectCommand({
+        Bucket: process.env.S3_BUCKET!,
+        Key: img.key
+      });
+      const url = await getSignedUrl(s3, cmd, { expiresIn: 60 * 60 });
+      return {
+        id:        img.id,
+        name:      img.name,
+        url,
+        createdAt: img.createdAt
+      };
+    })
+  );
+
+  res.json(signed);
 });
 
+// POST /api/images
 router.post('/', upload.single('file'), async (req, res) => {
   if (!req.file) {
-    return res.status(400).json({ error: 'Se debe subir un archivo bajo el campo "file"' });
+    return res
+      .status(400)
+      .json({ error: 'Se debe subir un archivo bajo el campo "file"' });
   }
 
-  // Generamos un nombre de objeto único
-  const fileKey = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${req.file.originalname}`;
+  const fileKey = `${Date.now()}-${req.file.originalname}`;
 
-  // Preparamos comando de subida
-  const cmd = new PutObjectCommand({
-    Bucket: process.env.S3_BUCKET,
+  const uploadCmd = new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET!,
     Key: fileKey,
     Body: req.file.buffer,
-    ContentType: req.file.mimetype,
+    ContentType: req.file.mimetype
   });
 
   try {
-    // Subimos a S3
-    await s3.send(cmd);
+    await s3.send(uploadCmd);
 
-    // Construimos la URL pública
-    const url = `https://${process.env.S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`;
-
-    // Guardamos en la BD
     const image = await prisma.image.create({
       data: {
-        url,
+        key:  fileKey,
         name: req.file.originalname
       }
     });
 
-    res.status(201).json(image);
+    const getCmd = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET!,
+      Key: image.key
+    });
+    const signedUrl = await getSignedUrl(s3, getCmd, { expiresIn: 60 * 60 });
 
+    res.status(201).json({
+      id:        image.id,
+      name:      image.name,
+      url:       signedUrl,
+      createdAt: image.createdAt
+    });
   } catch (err) {
     console.error('Error subiendo a S3:', err);
     res.status(500).json({ error: 'No se pudo subir el archivo' });

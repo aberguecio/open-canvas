@@ -1,36 +1,66 @@
-import React, { useState } from 'react';
+// src/components/ImageForm.tsx
+import React, { useState, FormEvent } from 'react';
 
 interface Props {
-  onAddImage: (name: string, file: File) => void;
+  onAddImage: (name: string, file: File) => Promise<void>;
 }
 
 const ImageForm: React.FC<Props> = ({ onAddImage }) => {
   const [name, setName] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0] ?? null;
+    setFile(f);
+    setPreview(f ? URL.createObjectURL(f) : null);
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (file && name) {
-      onAddImage(name, file);
+    if (!name || !file) return;
+    setLoading(true);
+    try {
+      await onAddImage(name, file);
       setName('');
       setFile(null);
+      setPreview(null);
+    } catch (err) {
+      console.error('Error al subir la imagen', err);
+      alert('Error al subir la imagen');
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} style={{ marginBottom: '1rem' }}>
       <input
         type="text"
         placeholder="Nombre de la imagen"
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={e => setName(e.target.value)}
+        required
       />
       <input
         type="file"
         accept="image/*"
-        onChange={(e) => setFile(e.target.files?.[0] || null)}
+        onChange={handleFileChange}
+        required
       />
-      <button type="submit">Subir imagen</button>
+      {preview && (
+        <div style={{ margin: '0.5rem 0' }}>
+          <img
+            src={preview}
+            alt="preview"
+            style={{ maxHeight: 100, objectFit: 'contain' }}
+          />
+        </div>
+      )}
+      <button type="submit" disabled={loading}>
+        {loading ? 'Subiendo...' : 'Subir imagen'}
+      </button>
     </form>
   );
 };

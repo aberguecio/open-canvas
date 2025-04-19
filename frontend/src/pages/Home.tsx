@@ -2,33 +2,28 @@
 import React, { useState, useEffect } from 'react';
 import ImageForm from '../components/ImageForm';
 import ImageList from '../components/ImageList';
-import { fetchImages, uploadImage, deleteImage } from '../services/ImageService';
-
-interface Image {
-  id: number;
-  name: string;
-  url: string;
-}
+import {
+  fetchImages,
+  uploadImage,
+  deleteImage,
+  Image,
+} from '../services/ImageService';
 
 const Home: React.FC = () => {
   const [images, setImages] = useState<Image[]>([]);
 
   useEffect(() => {
-    const loadImages = async () => {
-      const fetchedImages = await fetchImages();
-      setImages(fetchedImages);
-    };
-    loadImages();
+    fetchImages().then(setImages).catch(console.error);
   }, []);
 
   const handleAddImage = async (name: string, file: File) => {
-    const newImage = await uploadImage(name, file);
-    setImages([newImage, ...images]);
+    const newImg = await uploadImage(name, file);
+    setImages(prev => [newImg, ...prev]);
   };
 
   const handleDeleteImage = async (id: number) => {
     await deleteImage(id);
-    setImages(images.filter(image => image.id !== id));
+    setImages(prev => prev.filter(img => img.id !== id));
   };
 
   return (
