@@ -50,11 +50,6 @@ router.post('/', upload.single('file'), async (req, res) => {
     res.status(201).json(image);
 
   } catch (err) {
-    console.log("Credenciales S3:");
-    console.log("AWS_ACCESS_KEY_ID:", process.env.AWS_ACCESS_KEY_ID);
-    console.log("AWS_SECRET_ACCESS_KEY:", process.env.AWS_SECRET_ACCESS_KEY);
-    console.log("AWS_REGION:", process.env.AWS_REGION);
-    console.log("S3_BUCKET:", process.env.S3_BUCKET);
     console.error('Error subiendo a S3:', err);
     res.status(500).json({ error: 'No se pudo subir el archivo' });
   }
