@@ -8,12 +8,13 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
-CREATE TABLE "Images" (
+CREATE TABLE "Image" (
     "id" SERIAL NOT NULL,
-    "link" TEXT NOT NULL,
-    "autor" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "Images_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Image_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex

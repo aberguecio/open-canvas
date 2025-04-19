@@ -1,10 +1,15 @@
 # frontend/Dockerfile
-FROM node:23-slim
+FROM node:20-slim
+
 WORKDIR /app
 
+# Copiamos los archivos de configuración primero
 COPY package*.json ./
+
+# Limpieza antes de instalar
 RUN npm install
 
+# Copiamos el resto del proyecto
 COPY . .
-
-EXPOSE 3000
+# al final de tu Dockerfile
+ENTRYPOINT ["sh","-c","npm run dev -- --host"]
