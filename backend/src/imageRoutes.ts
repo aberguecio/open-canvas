@@ -21,7 +21,7 @@ const upload = multer({
 // GET /api/images
 router.get('/', async (_req, res) => {
   const images = await prisma.image.findMany({
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'asc' }
   });
 
   const signed = await Promise.all(
