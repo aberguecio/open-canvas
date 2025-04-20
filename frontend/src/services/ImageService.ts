@@ -12,7 +12,7 @@ const API_URL = 'http://localhost:4000/api/images';
 export async function fetchImages(): Promise<Image[]> {
   const res = await axios.get<Image[]>(API_URL);
   // opcional: ordenar por id descendente
-  return res.data.sort((a, b) => b.id - a.id);
+  return res.data;
 }
 
 export async function uploadImage(name: string, file: File): Promise<Image> {

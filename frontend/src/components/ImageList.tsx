@@ -42,8 +42,11 @@ const ImageList: React.FC<Props> = ({ images, onDeleteImage }) => {
             justifyContent: 'center',
             gap: '1rem' // espacio entre nombre y botón
           }}>
+            {index === 0 && <strong style={{ color: 'limegreen', marginLeft: '0.5rem' }}>(Current)</strong>}
             <span>{img.name}</span>
-            {index === 0 && <small style={{ color: 'limegreen', marginLeft: '0.5rem' }}>(Current)</small>}
+            <span style={{ fontSize: '0.8rem', color: '#888' }}>
+              {new Date(img.createdAt).toLocaleDateString()}
+            </span>
             <button onClick={() => onDeleteImage(img.id)}>Eliminar</button>
           </div>
         </li>
