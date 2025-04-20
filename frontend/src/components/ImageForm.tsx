@@ -1,36 +1,66 @@
 // src/components/ImageForm.tsx
-import React, { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useCallback } from 'react'
+import Cropper from 'react-easy-crop'
+import { getCroppedImg } from '../utils/cropImage'
+import { Area } from 'react-easy-crop/types'
 
 interface Props {
-  onAddImage: (name: string, file: File) => Promise<void>;
+  onAddImage: (name: string, file: File) => Promise<void>
 }
 
-const ImageForm: React.FC<Props> = ({ onAddImage }) => {
-  const [name, setName] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+const ASPECT = 800 / 480  // 5:3
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0] ?? null;
-    setFile(f);
-    setPreview(f ? URL.createObjectURL(f) : null);
+export default function ImageForm({ onAddImage }: Props) {
+  const [name, setName] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [imageSrc, setImageSrc] = useState<string | null>(null)
+
+  // Crop state
+  const [crop, setCrop] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedArea, setCroppedArea] = useState<Area | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null
+    if (f && f.type.startsWith('image/')) {
+      setFile(f)
+      setImageSrc(URL.createObjectURL(f))
+    } else {
+      setFile(null)
+      setImageSrc(null)
+      alert('Solo imágenes válidas')
+    }
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!name || !file) return;
-    setLoading(true);
+  const onCropComplete = useCallback(
+    (_: Area, cropped: Area) => {
+      setCroppedArea(cropped)
+    },
+    []
+  )
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!file || !imageSrc || !croppedArea) return
+    setLoading(true)
     try {
-      await onAddImage(name, file);
-      setName('');
-      setFile(null);
-      setPreview(null);
+      // Obtenemos blob recortado
+      const blob = await getCroppedImg(imageSrc, croppedArea)
+      // Lo convertimos en File para que mantenga nombre y tipo
+      const croppedFile = new File([blob], file.name, { type: 'image/png' })
+      await onAddImage(name, croppedFile)
+      // Reset
+      setName('')
+      setFile(null)
+      setImageSrc(null)
+      setZoom(1)
+      setCrop({ x: 0, y: 0 })
     } catch (err) {
-      console.error('Error al subir la imagen', err);
-      alert('Error al subir la imagen');
+      console.error(err)
+      alert('Error al procesar la imagen')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
@@ -46,23 +76,43 @@ const ImageForm: React.FC<Props> = ({ onAddImage }) => {
       <input
         type="file"
         accept="image/*"
-        onChange={handleFileChange}
+        onChange={onFileChange}
         required
       />
-      {preview && (
-        <div style={{ margin: '0.5rem 0' }}>
-          <img
-            src={preview}
-            alt="preview"
-            style={{ maxHeight: 100, objectFit: 'contain' }}
+
+      {imageSrc && (
+        <div style={{ position: 'relative', width: 400, height: 240 }}>
+          <Cropper
+            image={imageSrc}
+            crop={crop}
+            zoom={zoom}
+            aspect={ASPECT}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onCropComplete={onCropComplete}
           />
         </div>
       )}
-      <button type="submit" disabled={loading}>
-        {loading ? 'Subiendo...' : 'Subir imagen'}
+
+      {imageSrc && (
+        <div style={{ margin: '0.5rem 0' }}>
+          <label>
+            Zoom:
+            <input
+              type="range"
+              min={1}
+              max={3}
+              step={0.1}
+              value={zoom}
+              onChange={e => setZoom(Number(e.target.value))}
+            />
+          </label>
+        </div>
+      )}
+
+      <button type="submit" disabled={loading || !croppedArea}>
+        {loading ? 'Procesando...' : 'Subir imagen'}
       </button>
     </form>
-  );
-};
-
-export default ImageForm;
+  )
+}

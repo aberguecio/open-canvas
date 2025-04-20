@@ -27,8 +27,8 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div>
-      <h1>Galería de Imágenes</h1>
+    <div style={{margin: "10%", padding: '2rem', flexDirection: 'column'}}>
+      <h1>Open-Paper</h1>
       <ImageForm onAddImage={handleAddImage} />
       <ImageList images={images} onDeleteImage={handleDeleteImage} />
     </div>

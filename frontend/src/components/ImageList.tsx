@@ -17,18 +17,34 @@ const ImageList: React.FC<Props> = ({ images, onDeleteImage }) => {
           key={img.id}
           style={{
             display: 'flex',
+            flexDirection: 'column', // apila imagen y contenido
             alignItems: 'center',
-            marginBottom: '1rem',
+            marginBottom: '2rem',
+            textAlign: 'center',
           }}
         >
           <img
             src={img.url}
             alt={img.name}
-            style={{ maxHeight: 80, marginRight: '1rem', objectFit: 'cover' }}
+            style={{
+              maxHeight: 500,
+              maxWidth: '95%',
+              marginBottom: '0.5rem',
+              objectFit: 'cover'
+            }}
           />
-          <span style={{ flexGrow: 1 }}>{img.name}</span>
-          <button onClick={() => onDeleteImage(img.id)}>Eliminar</button>
+
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '1rem' // espacio entre nombre y botón
+          }}>
+            <span>{img.name}</span>
+            <button onClick={() => onDeleteImage(img.id)}>Eliminar</button>
+          </div>
         </li>
+
       ))}
     </ul>
   );

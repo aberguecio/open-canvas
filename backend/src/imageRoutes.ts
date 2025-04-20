@@ -3,8 +3,10 @@ import { Router } from 'express';
 import multer from 'multer';
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { prisma } from './prisma';
+import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3 } from './s3Client';
+import { prisma } from './prisma';
+import sharp from 'sharp';
 
 const router = Router();
 
@@ -49,12 +51,17 @@ router.post('/', upload.single('file'), async (req, res) => {
       .json({ error: 'Se debe subir un archivo bajo el campo "file"' });
   }
 
+  const processed = await sharp(req.file.buffer)
+    .resize(800, 480, { fit: 'cover' })
+    //.png({ palette: true, colors: 7, dither: 1.0, quality: 100 })
+    .toBuffer();
+
   const fileKey = `${Date.now()}-${req.file.originalname}`;
 
   const uploadCmd = new PutObjectCommand({
     Bucket: process.env.S3_BUCKET!,
     Key: fileKey,
-    Body: req.file.buffer,
+    Body: processed, //req.file.buffer,
     ContentType: req.file.mimetype
   });
 
@@ -64,7 +71,7 @@ router.post('/', upload.single('file'), async (req, res) => {
     const image = await prisma.image.create({
       data: {
         key:  fileKey,
-        name: req.file.originalname
+        name: req.body.name || req.file.originalname
       }
     });
 
@@ -84,6 +91,31 @@ router.post('/', upload.single('file'), async (req, res) => {
     console.error('Error subiendo a S3:', err);
     res.status(500).json({ error: 'No se pudo subir el archivo' });
   }
+});
+
+router.delete('/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    return res.status(400).json({ error: 'ID inválido' });
+  }
+
+  // 1) Busca la imagen en la BD
+  const image = await prisma.image.findUnique({ where: { id } });
+  if (!image) {
+    return res.status(404).json({ error: 'Imagen no encontrada' });
+  }
+
+  // 2) Elimina el objeto de S3
+  await s3.send(new DeleteObjectCommand({
+    Bucket: process.env.S3_BUCKET!,
+    Key: image.key
+  }));
+
+  // 3) Elimina el registro de la BD
+  await prisma.image.delete({ where: { id } });
+
+  // 4) Responde sin contenido
+  res.status(204).end();
 });
 
 export default router;

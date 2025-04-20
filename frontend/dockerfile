@@ -11,5 +11,5 @@ RUN npm install
 
 # Copiamos el resto del proyecto
 COPY . .
-# al final de tu Dockerfile
-ENTRYPOINT ["sh","-c","npm run dev -- --host"]
+
+ENTRYPOINT ["sh","-c","npm install && npm run dev -- --host"]
