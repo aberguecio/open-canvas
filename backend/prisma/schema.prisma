@@ -17,5 +17,6 @@ model Image {
   id        Int      @id @default(autoincrement())
   key       String
   name      String
+  userEmail String   @default("test@test.com")
   createdAt DateTime @default(now())
 }
