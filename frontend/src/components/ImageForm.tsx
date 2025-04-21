@@ -77,7 +77,7 @@ export default function ImageForm({ onAddImage }: Props) {
   return (
     <>
       <div style={{ margin: '2% 15%', textAlign: 'right' }}>
-        <button onClick={openModal}>Subir Imagen</button>
+        <button style={{width: '100%' }} onClick={openModal}>Subir Imagen</button>
       </div>
 
       {isModalOpen && (

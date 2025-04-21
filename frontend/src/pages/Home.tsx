@@ -6,6 +6,8 @@ import ImageForm from '../components/ImageForm';
 import ImageList from '../components/ImageList';
 import { fetchImages, uploadImage, deleteImage, setAuthToken, Image } from '../services/ImageService';
 
+const adminEmail = import.meta.env.VITE_ADMIN_EMAIL as string;
+
 interface GooglePayload {
   email: string;
   // ...otros campos que necesites
@@ -47,21 +49,25 @@ export default function Home() {
   };
 
   return (
-    <div style={{ margin: '5% 10%', padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', overflow: 'hidden' }}>
-        <h1>Open‑Paper</h1>
-        <div style={{ display: 'flex', alignItems: 'center', minWidth: "200px" }}>
+    <div style={{ margin: '2% 10%', padding: '2rem', display: 'flex', flexDirection: 'column' }}>
+      <header style={{ margin: '0 10% 2rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap'}}>
+        <h1>Open‑Canvas</h1>
+        <div style={{ display: 'flex', alignItems: 'center', minWidth: "180px" }}>
           {!token ? (
             <GoogleLogin onSuccess={handleLogin} onError={() => console.log('Login Failed')} />
           ) : (
-            <button onClick={handleLogout}>Cerrar sesión ({userEmail})</button>
+            <button onClick={handleLogout}>Cerrar sesión</button>
           )}
         </div>
       </header>
 
       {token && <ImageForm onAddImage={handleAddImage} />}
 
-      <ImageList images={images} onDeleteImage={handleDeleteImage} />
+      <ImageList images={images}
+        onDeleteImage={handleDeleteImage}
+        currentUser={userEmail} 
+        adminEmail={adminEmail}
+        />
     </div>
   );
 }
