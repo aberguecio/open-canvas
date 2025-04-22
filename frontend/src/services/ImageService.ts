@@ -26,6 +26,11 @@ export async function fetchImages(): Promise<Image[]> {
   return res.data;
 }
 
+export async function fetchRemainingMs(): Promise<number> {
+  const res = await api.get<{ ms: number }>('/api/remaining-time');
+  return res.data.ms;
+}
+
 export async function uploadImage(name: string, file: File): Promise<Image> {
   const formData = new FormData();
   formData.append('name', name);

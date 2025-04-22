@@ -1,6 +1,5 @@
-// src/components/ImageList.tsx
-import React from 'react';
-import { Image } from '../services/ImageService';
+import React, { useState, useEffect } from 'react';
+import { Image, fetchRemainingMs } from '../services/ImageService';
 
 interface Props {
   images: Image[];
@@ -10,6 +9,48 @@ interface Props {
 }
 
 const ImageList: React.FC<Props> = ({ images, onDeleteImage, currentUser, adminEmail }) => {
+  const [timer, setTimer] = useState<string>('00:00:00');
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    async function initTimer() {
+      try {
+        const ms = await fetchRemainingMs();
+        let remaining = ms;
+
+        // format initial
+        setTimer(formatMs(remaining));
+
+        // update every second
+        intervalId = setInterval(() => {
+          remaining -= 1000;
+          if (remaining <= 0) {
+            clearInterval(intervalId);
+            window.location.reload();
+          } else {
+            setTimer(formatMs(remaining));
+          }
+        }, 1000);
+      } catch (err) {
+        console.error('Error fetching remaining time', err);
+      }
+    }
+
+    initTimer();
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
+
+  function formatMs(ms: number): string {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
   if (images.length === 0) return <p>No hay imágenes para mostrar.</p>;
 
   return (
@@ -24,10 +65,10 @@ const ImageList: React.FC<Props> = ({ images, onDeleteImage, currentUser, adminE
             key={img.id}
             style={{
               display: 'flex',
-              flexDirection: 'column', // apila imagen y contenido
+              flexDirection: 'column',
               alignItems: 'center',
               marginBottom: '2rem',
-              textAlign: 'center',
+              textAlign: 'center'
             }}
           >
             <img
@@ -46,16 +87,17 @@ const ImageList: React.FC<Props> = ({ images, onDeleteImage, currentUser, adminE
               <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
                 {img.name}
                 {index === 0 && (
-                  <span style={{ color: 'limegreen', fontSize: '1rem', marginLeft: '0.5rem' }}>
-                    (Current)
-                  </span>
+                  <>
+                    <span style={{ color: 'limegreen', fontSize: '1rem', marginLeft: '0.5rem' }}>(Current)</span>
+                    <div style={{ fontSize: '3rem', marginTop: '0.25rem' }}>{timer}</div>
+                  </>
                 )}
               </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#777' }}>
               <span style={{ padding: '10px' }}>
-                Subido por: {img.userEmail} el {new Date(img.createdAt).toLocaleDateString()}
+                Subido por: {img.userName} el {new Date(img.createdAt).toLocaleDateString()}
               </span>
               {canDelete && (
                 <button onClick={() => onDeleteImage(img.id)}>Eliminar</button>

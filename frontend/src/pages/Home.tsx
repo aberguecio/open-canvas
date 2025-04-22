@@ -40,7 +40,7 @@ export default function Home() {
 
   const handleAddImage = async (name: string, file: File) => {
     const newImg = await uploadImage(name, file);
-    setImages(prev => [newImg, ...prev]);
+    setImages(prev => [...prev, newImg]);
   };
 
   const handleDeleteImage = async (id: number) => {

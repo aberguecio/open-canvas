@@ -2,6 +2,8 @@ import express from 'express';
 import { prisma } from './prisma';
 import cors from 'cors';
 import imageRoutes from './imageRoutes';
+import './scheduler'; 
+import { getRemainingMs } from './scheduler';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -15,15 +17,12 @@ app.use(cors({
   credentials: true
 }));
 
-app.get('/api/users', async (_req, res) => {
-  res.json(await prisma.user.findMany());
-});
-
-app.post('/api/users', async (req, res) => {
-  const user = await prisma.user.create({ data: req.body });
-  res.status(201).json(user);
-});
-
 app.use('/api/images', imageRoutes);
+
+app.get('/api/remaining-time', (_req, res) => {
+  const ms = getRemainingMs();
+  const hours = ms / (1000 * 60 * 60);
+  res.json({ ms, hours });
+});
 
 app.listen(3000, () => console.log('🚀 API on :3000'));

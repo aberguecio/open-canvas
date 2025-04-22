@@ -24,7 +24,8 @@ const upload = multer({
 // Devuelve lista de imágenes con URL firmada y email del usuario
 router.get('/', async (_req, res) => {
   const images = await prisma.image.findMany({
-    orderBy: { createdAt: 'desc' }
+    where: { isVisible: true },
+    orderBy: { createdAt: 'asc' }
   });
 
   const signed = await Promise.all(
@@ -39,6 +40,7 @@ router.get('/', async (_req, res) => {
         name:      img.name,
         url,
         createdAt: img.createdAt,
+        userName:  img.userName,
         userEmail: img.userEmail    // agregamos email
       };
     })
@@ -72,6 +74,28 @@ router.post('/', upload.single('file'), async (req, res) => {
     return res.status(400).json({ error: 'Se debe subir un archivo bajo el campo "file"' });
   }
 
+  const startOfDay = new Date();
+  startOfDay.setHours(0,0,0,0);
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setDate(endOfDay.getDate() + 1);
+
+  // cuenta subidas hoy por este usuario
+  const uploadsToday = await prisma.image.count({
+    where: {
+      userEmail: payload.email!,
+      createdAt: {
+        gte: startOfDay,
+        lt:  endOfDay
+      }
+    }
+  });
+
+  if (uploadsToday >= 1) {
+    return res
+      .status(429)
+      .json({ error: 'Solo puedes subir una imagen al día' });
+  }
+
   // Procesa imagen
   const processed = await sharp(req.file.buffer)
     .resize(800, 480, { fit: 'cover' })
@@ -90,6 +114,7 @@ router.post('/', upload.single('file'), async (req, res) => {
     data: {
       key:       fileKey,
       name:      req.body.name || req.file.originalname,
+      userName:  payload.name!,
       userEmail: payload.email!
     }
   });
@@ -106,7 +131,8 @@ router.post('/', upload.single('file'), async (req, res) => {
     name:      image.name,
     url:       signedUrl,
     createdAt: image.createdAt,
-    userEmail: image.userEmail
+    userEmail: image.userEmail,
+    userName:  image.userName
   });
 });
 
@@ -120,6 +146,15 @@ router.delete('/:id', async (req, res) => {
   const image = await prisma.image.findUnique({ where: { id } });
   if (!image) {
     return res.status(404).json({ error: 'Imagen no encontrada' });
+  }
+
+  const current = await prisma.image.findFirst({
+    where: { isVisible: true },
+    orderBy: { createdAt: 'asc' }
+  });
+
+  if (current && current.id === id) {
+    return res.status(400).json({ error: 'No se puede eliminar la imagen actual' });
   }
 
   await s3.send(new DeleteObjectCommand({

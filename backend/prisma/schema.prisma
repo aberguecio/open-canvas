@@ -7,16 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id    Int    @id @default(autoincrement())
-  name  String
-  email String @unique
-}
-
 model Image {
-  id        Int      @id @default(autoincrement())
-  key       String
-  name      String
-  userEmail String   @default("test@test.com")
-  createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  key        String
+  name       String
+  userName   String
+  userEmail  String
+  isVisible  Boolean  @default(true)
+  createdAt  DateTime @default(now())
 }
