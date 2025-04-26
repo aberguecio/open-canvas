@@ -28,6 +28,21 @@ async function rotateAndReschedule() {
     // 2) Cuenta cuántas siguen visibles
     const remaining = await prisma.image.count({ where: { isVisible: true } });
 
+    if (remaining === 0) {
+      // toma el favorito más antiguo y lo vuelve visible
+      const fav = await prisma.image.findFirst({
+        where: { isFavorite: true },
+        orderBy: { createdAt: 'asc' }
+      });
+      if (fav) {
+        await prisma.image.update({
+          where: { id: fav.id },
+          data: { isVisible: true, createdAt: new Date() }
+        });
+        console.log(`Re-queued favorite ${fav.id}`);
+      }
+    }
+
     // 3) Calcula intervalo en horas (24h/remaining), entre 1h y 24h
     const hours = remaining > 0
       ? Math.max(1, Math.min(12, 100 / remaining))

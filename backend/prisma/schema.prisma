@@ -14,5 +14,6 @@ model Image {
   userName   String
   userEmail  String
   isVisible  Boolean  @default(true)
+  isFavorite Boolean  @default(false) 
   createdAt  DateTime @default(now())
 }

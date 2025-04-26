@@ -1,16 +1,20 @@
-// src/pages/Home.tsx
 import React, { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import ImageForm from '../components/ImageForm';
 import ImageList from '../components/ImageList';
-import { fetchImages, uploadImage, deleteImage, setAuthToken, Image } from '../services/ImageService';
+import {
+  fetchImages,
+  uploadImage,
+  deleteImage,
+  setAuthToken,
+  Image
+} from '../services/ImageService';
 
 const adminEmail = import.meta.env.VITE_ADMIN_EMAIL as string;
 
 interface GooglePayload {
   email: string;
-  // ...otros campos que necesites
 }
 
 export default function Home() {
@@ -19,23 +23,38 @@ export default function Home() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
+    // Rehidrata sesión
+    const storedToken = localStorage.getItem('token');
+    const storedEmail = localStorage.getItem('userEmail');
+
+    if (storedToken && storedEmail) {
+      setToken(storedToken);
+      setUserEmail(storedEmail);
+      setAuthToken(storedToken);
+    }
+
+    // Carga inicial de imágenes
     fetchImages().then(setImages).catch(console.error);
   }, []);
 
   const handleLogin = (res: CredentialResponse) => {
-    if (res.credential) {
-      const jwt = res.credential;
-      const payload = jwtDecode<GooglePayload>(jwt);
-      setToken(jwt);
-      setUserEmail(payload.email);
-      setAuthToken(jwt);
-    }
+    if (!res.credential) return;
+    const jwt = res.credential;
+    const payload = jwtDecode<GooglePayload>(jwt);
+
+    setToken(jwt);
+    setUserEmail(payload.email);
+    setAuthToken(jwt);
+    localStorage.setItem('token', jwt);
+    localStorage.setItem('userEmail', payload.email);
   };
 
   const handleLogout = () => {
     setToken(null);
     setUserEmail(null);
-    setAuthToken(''); // limpia header
+    setAuthToken('');
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
   };
 
   const handleAddImage = async (name: string, file: File) => {
@@ -50,9 +69,16 @@ export default function Home() {
 
   return (
     <div style={{ margin: '2% 10%', padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ margin: '0 10% 2rem', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap'}}>
-        <h1>Open‑Canvas</h1>
-        <div style={{ display: 'flex', alignItems: 'center', minWidth: "180px" }}>
+      <header
+        style={{
+          margin: '0 10% 2rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap'
+        }}
+      >
+        <h1>Open-Canvas</h1>
+        <div style={{ display: 'flex', alignItems: 'center', minWidth: '180px' }}>
           {!token ? (
             <GoogleLogin onSuccess={handleLogin} onError={() => console.log('Login Failed')} />
           ) : (
@@ -63,11 +89,13 @@ export default function Home() {
 
       {token && <ImageForm onAddImage={handleAddImage} />}
 
-      <ImageList images={images}
+      <ImageList
+        images={images}
         onDeleteImage={handleDeleteImage}
-        currentUser={userEmail} 
+        currentUser={userEmail}
         adminEmail={adminEmail}
-        />
+        showcurrent = {true}
+      />
     </div>
   );
 }

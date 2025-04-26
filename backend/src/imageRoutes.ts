@@ -20,7 +20,7 @@ const upload = multer({
   }
 });
 
-// GET /api/images
+// GET /images
 // Devuelve lista de imágenes con URL firmada y email del usuario
 router.get('/', async (_req, res) => {
   const images = await prisma.image.findMany({
@@ -49,7 +49,7 @@ router.get('/', async (_req, res) => {
   res.json(signed);
 });
 
-// POST /api/images
+// POST //images
 // Requiere token en Authorization Bearer o en body.token
 router.post('/', upload.single('file'), async (req, res) => {
   // Extrae token
@@ -136,7 +136,7 @@ router.post('/', upload.single('file'), async (req, res) => {
   });
 });
 
-// DELETE /api/images/:id
+// DELETE //images/:id
 router.delete('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {

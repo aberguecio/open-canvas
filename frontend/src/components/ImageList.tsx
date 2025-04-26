@@ -4,11 +4,28 @@ import { Image, fetchRemainingMs } from '../services/ImageService';
 interface Props {
   images: Image[];
   onDeleteImage: (id: number) => Promise<void>;
-  currentUser: string | null;
-  adminEmail: string;
+  onAddFav?: (id:number)=>Promise<void>;
+  onRemoveFav?: (id:number)=>Promise<void>;
+  onRequeue?: (id:number)=>Promise<void>;
+  showcurrent?: boolean;
+  showAdminActions?: boolean;
+  hideAddFav?: boolean;
+  currentUser?: string | null;
+  adminEmail?:  string;
 }
 
-const ImageList: React.FC<Props> = ({ images, onDeleteImage, currentUser, adminEmail }) => {
+const ImageList: React.FC<Props> = ({
+  images,
+  onDeleteImage,
+  onAddFav,
+  onRemoveFav,
+  onRequeue,
+  showcurrent = false,
+  showAdminActions = false,
+  hideAddFav = false,
+  currentUser,
+  adminEmail
+}) => {
   const [timer, setTimer] = useState<string>('00:00:00');
 
   useEffect(() => {
@@ -78,7 +95,7 @@ const ImageList: React.FC<Props> = ({ images, onDeleteImage, currentUser, adminE
                 maxHeight: 500,
                 maxWidth: '95%',
                 marginBottom: '0.5rem',
-                border: index === 0 ? '5px solid limegreen' : 'none',
+                border: (index === 0 && showcurrent) ? '5px solid limegreen' : 'none',
                 objectFit: 'cover'
               }}
             />
@@ -86,7 +103,7 @@ const ImageList: React.FC<Props> = ({ images, onDeleteImage, currentUser, adminE
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
                 {img.name}
-                {index === 0 && (
+                {(index === 0 && showcurrent) && (
                   <>
                     <span style={{ color: 'limegreen', fontSize: '1rem', marginLeft: '0.5rem' }}>(Current)</span>
                     <div style={{ fontSize: '3rem', marginTop: '0.25rem' }}>{timer}</div>
@@ -102,6 +119,18 @@ const ImageList: React.FC<Props> = ({ images, onDeleteImage, currentUser, adminE
               {canDelete && (
                 <button onClick={() => onDeleteImage(img.id)}>Eliminar</button>
               )}
+              {showAdminActions && (
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {!img.isFavorite && !hideAddFav && (
+                    <button onClick={() => onAddFav?.(img.id)}>★ Fav</button>
+                  )}
+                  {img.isFavorite && (
+                    <button onClick={() => onRemoveFav?.(img.id)}>✕ Unfav</button>
+                  )}
+                  <button onClick={() => onRequeue?.(img.id)}>⏩ Requeue</button>
+                </div>
+              )}
+
             </div>
           </li>
         );

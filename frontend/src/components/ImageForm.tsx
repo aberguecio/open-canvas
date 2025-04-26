@@ -2,6 +2,7 @@ import React, { useState, FormEvent, useCallback, useEffect } from 'react'
 import Cropper from 'react-easy-crop'
 import { getCroppedImg } from '../utils/cropImage'
 import { Area } from 'react-easy-crop/types'
+import axios from 'axios'
 
 interface Props {
   onAddImage: (name: string, file: File) => Promise<void>
@@ -59,14 +60,18 @@ export default function ImageForm({ onAddImage }: Props) {
     setLoading(true)
     try {
       const blob = await getCroppedImg(imageSrc, croppedArea, rotation)
-      const croppedFile = new File([blob], file.name, { type: 'image/png' })
-      await onAddImage(name, croppedFile)
-      closeModal()
-    } catch (err) {
-      console.error(err)
-      alert('Error al procesar la imagen')
+      const croppedFile = new File([blob], file.name, { type: 'image/png' });
+      await onAddImage(name, croppedFile);
+      closeModal();
+    } catch (err: any) {
+      if (axios.isAxiosError(err) && err.response?.status === 429) {
+        alert('Sólo puedes subir una imagen por día. Inténtalo mañana.');
+      } else {
+        console.error(err);
+        alert('Error al procesar o subir la imagen');
+      }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 

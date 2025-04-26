@@ -2,6 +2,7 @@ import express from 'express';
 import { prisma } from './prisma';
 import cors from 'cors';
 import imageRoutes from './imageRoutes';
+import adminRoutes from './adminRoutes';
 import './scheduler'; 
 import { getRemainingMs } from './scheduler';
 import dotenv from 'dotenv';
@@ -17,9 +18,11 @@ app.use(cors({
   credentials: true
 }));
 
-app.use('/api/images', imageRoutes);
+app.use('/images', imageRoutes);
 
-app.get('/api/remaining-time', (_req, res) => {
+app.use('/admin', adminRoutes);
+
+app.get('/remaining-time', (_req, res) => {
   const ms = getRemainingMs();
   const hours = ms / (1000 * 60 * 60);
   res.json({ ms, hours });
