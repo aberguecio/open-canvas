@@ -14,18 +14,12 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/minidb
     depends_on:
       - postgres
 
   postgres:
     image: postgres:16
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: minidb
     volumes:
       - pgdata:/var/lib/postgresql/data
 

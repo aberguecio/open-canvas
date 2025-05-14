@@ -16,4 +16,10 @@ model Image {
   isVisible  Boolean  @default(true)
   isFavorite Boolean  @default(false) 
   createdAt  DateTime @default(now())
+  lastQueuedAt DateTime @default(now())
+}
+
+model Scheduler {
+  id         Int      @id           
+  nextRunAt  DateTime
 }

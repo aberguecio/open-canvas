@@ -12,7 +12,7 @@ async function rotateAndReschedule() {
     // 1) Busca la "current": la más reciente visible
     const current = await prisma.image.findFirst({
       where: { isVisible: true },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { lastQueuedAt: 'asc' }
     });
 
     if (current) {
@@ -32,12 +32,12 @@ async function rotateAndReschedule() {
       // toma el favorito más antiguo y lo vuelve visible
       const fav = await prisma.image.findFirst({
         where: { isFavorite: true },
-        orderBy: { createdAt: 'asc' }
+        orderBy: { lastQueuedAt: 'asc' }
       });
       if (fav) {
         await prisma.image.update({
           where: { id: fav.id },
-          data: { isVisible: true, createdAt: new Date() }
+          data: { isVisible: true, lastQueuedAt: new Date() }
         });
         console.log(`Re-queued favorite ${fav.id}`);
       }
@@ -51,10 +51,11 @@ async function rotateAndReschedule() {
     console.log(`Next rotation in ${hours.toFixed(2)}h (${ms/1000}s)`);
 
     // 4) Establece timestamp para el próximo run
-    nextRunTimestamp = Date.now() + ms;
-
-    // 5) Reprograma esta función
+    const nextDate = new Date(Date.now() + ms);
+    await saveNextRun(nextDate);
+    nextRunTimestamp = nextDate.getTime();
     setTimeout(rotateAndReschedule, ms);
+
   } catch (err) {
     console.error('Error rotating images:', err);
     // reintenta en 1h si falla
@@ -64,12 +65,31 @@ async function rotateAndReschedule() {
   }
 }
 
-// Arranca el ciclo cuando la app inicie
-rotateAndReschedule();
+async function saveNextRun(at: Date) {
+  await prisma.scheduler.upsert({
+    where: { id: 1 },
+    create: { id: 1, nextRunAt: at },
+    update: { nextRunAt: at },
+  });
+}
 
-/**
- * Devuelve los milisegundos que faltan hasta la próxima rotación.
- */
+
+// Arranca el ciclo cuando la app inicie
+async function initScheduler() {
+  const sched = await prisma.scheduler.findUnique({ where: { id: 1 } });
+  if (sched) {
+    const delay = sched.nextRunAt.getTime() - Date.now();
+    if (delay > 0) {
+      console.log(`Primera rotación en ${Math.ceil(delay/1000)}s`);
+      return setTimeout(rotateAndReschedule, delay);
+    }
+  }
+  // si no hay schedule o ya pasó: arranca de una vez
+  rotateAndReschedule();
+}
+
+initScheduler();
+
 export function getRemainingMs(): number {
   return Math.max(0, nextRunTimestamp - Date.now());
 }
