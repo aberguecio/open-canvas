@@ -78,9 +78,10 @@ async function saveNextRun(at: Date) {
 async function initScheduler() {
   const sched = await prisma.scheduler.findUnique({ where: { id: 1 } });
   if (sched) {
+    nextRunTimestamp = sched.nextRunAt.getTime()
     const delay = sched.nextRunAt.getTime() - Date.now();
     if (delay > 0) {
-      console.log(`Primera rotación en ${Math.ceil(delay/1000)}s`);
+      console.log(`Next rotation in ${Math.ceil(delay/1000)}s`);
       return setTimeout(rotateAndReschedule, delay);
     }
   }
