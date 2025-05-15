@@ -1,1 +1,25 @@
+.general-body {
+    margin: 2% 10%;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+}
 
+.general-body header {
+    margin: 0 10% 2rem;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+
+@media (max-width: 768px) {
+    .general-body {
+        margin: 2% 7%;
+        padding: 1rem;
+    }
+    .general-body header {
+        margin: 0;
+        justify-content: center;
+    }
+}
