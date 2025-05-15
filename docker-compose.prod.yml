@@ -8,6 +8,8 @@ services:
       - "5173:80"
     env_file:
       - ./frontend/.env
+    networks:
+      - webapp
 
   backend:
     build:
@@ -24,6 +26,8 @@ services:
         npx prisma migrate deploy &&
         npm start
       "
+    networks:
+      - webapp
 
   postgres:
     image: postgres:16
@@ -34,6 +38,8 @@ services:
       POSTGRES_PASSWORD: minidb
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - webapp
 
 volumes:
   pgdata:
