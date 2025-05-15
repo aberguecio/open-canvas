@@ -28,6 +28,9 @@
     "@types/node": "^22.14.1",
     "prisma": "^6.6.0",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@types/multer": "^1.4.7",
+    "@types/cors": "^2.8.17",
+    "@types/sharp": "^0.31.1"
   }
 }
