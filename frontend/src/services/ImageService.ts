@@ -12,7 +12,7 @@ export interface Image {
 }
 
 // Ajusta a tu URL real o usa import.meta.env
-const API_BASE = 'http://localhost:4000';
+const API_BASE = 'http://localhost:3000';
 
 export const api = axios.create({
   baseURL: API_BASE,
