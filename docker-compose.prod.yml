@@ -23,7 +23,10 @@ services:
   postgres:
     image: postgres:16
     restart: unless-stopped
-
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: minidb
     volumes:
       - pgdata:/var/lib/postgresql/data
 
