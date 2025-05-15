@@ -3,6 +3,7 @@ import { prisma } from './prisma';
 import cors from 'cors';
 import imageRoutes from './imageRoutes';
 import adminRoutes from './adminRoutes';
+import publicRoutes from './publicRoutes';
 import './scheduler'; 
 import { getRemainingMs } from './scheduler';
 import dotenv from 'dotenv';
@@ -19,6 +20,9 @@ app.use(cors({
 }));
 
 console.log('CORS enabled for:', process.env.VITE_API_URL);
+
+// CORS abierto solo para /api/public
+app.use('/api/v1/image', cors(), publicRoutes);
 
 app.use('/api/images', imageRoutes);
 

@@ -4,6 +4,7 @@ import { verifyGoogleToken } from './verifyGoogleToken';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3 } from './s3Client';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Image } from '@prisma/client';
 
 const router = Router();
 const adminEmail = process.env.ADMIN_EMAIL!; // Ensure this environment variable is set
@@ -46,9 +47,9 @@ function mustBeAdmin(req: Request, res: Response, next: NextFunction): void {
 // GET /admin/all -> todas las imágenes con URL firmada
 router.get('/all', mustBeAdmin, async (_req: Request, res: Response) => {
   try {
-    const images = await prisma.image.findMany({ orderBy: { createdAt: 'desc' } });
+    const images = await prisma.image.findMany({ orderBy: { lastQueuedAt: 'desc' } });
     const signed = await Promise.all(
-      images.map(async (img) => {
+      images.map(async (img:Image) => {
         const cmd = new GetObjectCommand({
           Bucket: process.env.S3_BUCKET!,
           Key: img.key
@@ -81,7 +82,7 @@ router.get('/favorites', mustBeAdmin, async (_req: Request, res: Response) => {
       orderBy: { lastQueuedAt: 'desc' }
     });
     const signed = await Promise.all(
-      favs.map(async (img) => {
+      favs.map(async (img:Image) => {
         const cmd = new GetObjectCommand({
           Bucket: process.env.S3_BUCKET!,
           Key: img.key

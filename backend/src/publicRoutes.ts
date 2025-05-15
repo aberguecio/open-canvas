@@ -5,6 +5,8 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { s3 } from './s3Client';
 import { prisma } from './prisma';
+import { getRemainingMs } from './scheduler';
+
 
 const router = Router();
 
@@ -26,14 +28,14 @@ router.get('/', async (_req: Request, res: Response) => {
     Key: image.key
   });
   const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+  const remainingMs = getRemainingMs();
 
   const signed = {
-    id:        image.id,
     name:      image.name,
     url,
     createdAt: image.createdAt,
     userName:  image.userName,
-    userEmail: image.userEmail
+    remainingMs,
   };
 
   res.json(signed);

@@ -10,6 +10,7 @@ import sharp from 'sharp';
 import { s3 } from './s3Client';
 import { prisma } from './prisma';
 import { verifyGoogleToken } from './verifyGoogleToken';
+import { Image } from '@prisma/client';
 
 const router = Router();
 const upload = multer({
@@ -30,7 +31,7 @@ router.get('/', async (_req: Request, res: Response) => {
     });
 
     const signed = await Promise.all(
-      images.map(async (img) => {
+      images.map(async (img:Image) => {
         const cmd = new GetObjectCommand({
           Bucket: process.env.S3_BUCKET!,
           Key: img.key
