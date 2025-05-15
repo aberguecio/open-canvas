@@ -20,11 +20,11 @@ app.use(cors({
 
 console.log('CORS enabled for:', process.env.VITE_API_URL);
 
-app.use('/images', imageRoutes);
+app.use('/api/images', imageRoutes);
 
-app.use('/admin', adminRoutes);
+app.use('/api/admin', adminRoutes);
 
-app.get('/remaining-time', (_req, res) => {
+app.get('/api/remaining-time', (_req, res) => {
   const ms = getRemainingMs();
   const hours = ms / (1000 * 60 * 60);
   res.json({ ms, hours });

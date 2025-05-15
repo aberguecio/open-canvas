@@ -24,12 +24,12 @@ export function setAuthToken(token: string) {
 }
 
 export async function fetchImages(): Promise<Image[]> {
-  const res = await api.get<Image[]>('/images');
+  const res = await api.get<Image[]>('/api/images');
   return res.data;
 }
 
 export async function fetchRemainingMs(): Promise<number> {
-  const res = await api.get<{ ms: number }>('/remaining-time');
+  const res = await api.get<{ ms: number }>('/api/remaining-time');
   return res.data.ms;
 }
 
@@ -38,22 +38,22 @@ export async function uploadImage(name: string, file: File): Promise<Image> {
   formData.append('name', name);
   formData.append('file', file);
 
-  const res = await api.post<Image>('/images', formData, {
+  const res = await api.post<Image>('/api/images', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
   return res.data;
 }
 
 export async function deleteImage(id: number): Promise<void> {
-  await api.delete(`/images/${id}`);
+  await api.delete(`/api/images/${id}`);
 }
 
 export async function fetchAllImages(): Promise<Image[]> { 
-  const res = await api.get<Image[]>('/admin/all');
+  const res = await api.get<Image[]>('/api/admin/all');
   return res.data;
 }
 
-export function fetchFavorites()        { return api.get<Image[]>('/admin/favorites').then(r => r.data); }
-export function addFavorite(id: number) { return api.post(`/admin/${id}/favorite`); }
-export function delFavorite(id: number) { return api.delete(`/admin/${id}/favorite`); }
-export function requeueImage(id:number) { return api.post(`/admin/${id}/requeue`); }
+export function fetchFavorites()        { return api.get<Image[]>('/api/admin/favorites').then(r => r.data); }
+export function addFavorite(id: number) { return api.post(`/api/admin/${id}/favorite`); }
+export function delFavorite(id: number) { return api.delete(`/api/admin/${id}/favorite`); }
+export function requeueImage(id:number) { return api.post(`/api/admin/${id}/requeue`); }
