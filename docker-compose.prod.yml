@@ -19,6 +19,11 @@ services:
       - ./backend/.env
     depends_on:
       - postgres
+    command: >
+      sh -c "
+        npx prisma migrate deploy &&
+        npm start
+      "
 
   postgres:
     image: postgres:16
