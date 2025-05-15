@@ -18,6 +18,8 @@ app.use(cors({
   credentials: true
 }));
 
+console.log('CORS enabled for:', process.env.VITE_API_URL);
+
 app.use('/images', imageRoutes);
 
 app.use('/admin', adminRoutes);
