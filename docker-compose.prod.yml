@@ -1,0 +1,38 @@
+version: '3.9'
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: dockerfile.prod
+    ports:
+      - "5173:80"
+    env_file:
+      - ./frontend/.env
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: dockerfile.prod
+    ports:
+      - "4000:3000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mi_base
+      POSTGRES_USER: usuario
+      POSTGRES_PASSWORD: clave
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+
+networks:
+  webapp:
+    external: true

@@ -29,7 +29,7 @@ const ImageList: React.FC<Props> = ({
   const [timer, setTimer] = useState<string>('00:00:00');
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
+    let intervalId: ReturnType<typeof setInterval>;
 
     async function initTimer() {
       try {

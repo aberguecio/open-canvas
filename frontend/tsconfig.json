@@ -1,4 +1,21 @@
 {
-  "files": [],
-  "references": []
+  "compilerOptions": {
+    "target": "es2017",                          
+    "module": "esnext",                          
+    "lib": [
+      "es2017",
+      "dom",
+      "dom.iterable"
+    ],                                          // añade las APIs de ES2015 y del navegador
+    "jsx": "react-jsx",                          
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,                     // para poder default-importar paquetes comunes
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "skipLibCheck": true,                        // evita chequear tipos de node_modules
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src"],                            // dónde están tus .tsx/.ts
+  "exclude": ["node_modules", "dist"]
 }

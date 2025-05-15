@@ -1,0 +1,28 @@
+# Etapa build
+FROM node:23-bullseye AS build
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+COPY prisma ./prisma
+COPY . .
+# Genera cliente Prisma y compila TS → dist/
+RUN npx prisma generate && npm run build
+
+# Etapa runtime
+FROM node:23-bullseye
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production
+
+# Copia sólo lo necesario
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/node_modules ./node_modules
+
+ENV NODE_ENV=production
+EXPOSE 3000
+
+CMD ["npm", "start"]

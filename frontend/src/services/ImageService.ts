@@ -6,6 +6,8 @@ export interface Image {
   name: string;
   url: string;
   createdAt: string;
+  userName: string;
+  isFavorite: boolean;
   userEmail: string;
 }
 

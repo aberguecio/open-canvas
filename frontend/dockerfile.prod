@@ -1,0 +1,15 @@
+# 1) Build
+FROM node:20-slim AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build    # genera /app/dist
+
+# 2) Runner estático
+FROM node:20-slim
+RUN npm install -g serve
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+EXPOSE 80
+CMD ["serve", "-s", "dist", "-l", "80"]
