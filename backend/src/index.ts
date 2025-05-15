@@ -28,4 +28,4 @@ app.get('/remaining-time', (_req, res) => {
   res.json({ ms, hours });
 });
 
-app.listen(3000, () => console.log('🚀 API on :3000'));
+app.listen(4000, () => console.log('🚀 API on :4000'));

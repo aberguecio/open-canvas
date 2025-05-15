@@ -16,7 +16,7 @@ services:
       context: ./backend
       dockerfile: dockerfile.prod
     ports:
-      - "3000:3000"
+      - "4000:4000"
     env_file:
       - ./backend/.env
     depends_on:
