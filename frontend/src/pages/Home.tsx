@@ -93,7 +93,7 @@ export default function Home() {
           {!token ? (
             <GoogleLogin onSuccess={handleLogin} onError={() => console.log('Login Failed')} theme="filled_black" />
           ) : (
-            <button onClick={handleLogout}>Cerrar sesión</button>
+            <button style={{minWidth: '200px'}} onClick={handleLogout}>Cerrar sesión</button>
           )}
         </div>
       </header>
