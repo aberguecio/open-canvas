@@ -22,11 +22,9 @@ export default function ImageForm({ onAddImage }: Props) {
   const [croppedArea, setCroppedArea] = useState<Area | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Estado para control de tiempo de subida
   const [remainingMs, setRemainingMs] = useState<number>(0)
   const [timer, setTimer] = useState<string>('')
 
-  // Función para formatear ms a hh:mm:ss
   function formatMs(ms: number): string {
     const totalSeconds = Math.floor(ms / 1000)
     const hours = Math.floor(totalSeconds / 3600)
@@ -46,12 +44,10 @@ export default function ImageForm({ onAddImage }: Props) {
 }
   
 
-  // Consulta el tiempo restante al montar el componente
   useEffect(() => {
     fetchTime();
   }, [])
 
-  // Actualiza el timer cada segundo si hay tiempo restante
   useEffect(() => {
     if (remainingMs <= 0) {
       setTimer('')
