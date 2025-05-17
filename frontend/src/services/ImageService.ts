@@ -57,3 +57,9 @@ export function fetchFavorites()        { return api.get<Image[]>('/api/admin/fa
 export function addFavorite(id: number) { return api.post(`/api/admin/${id}/favorite`); }
 export function delFavorite(id: number) { return api.delete(`/api/admin/${id}/favorite`); }
 export function requeueImage(id:number) { return api.post(`/api/admin/${id}/requeue`); }
+
+
+export async function fetchUserTime(): Promise<number> {
+  const res = await api.get<{ remainingMs: number }>('/api/images/time');
+  return res.data.remainingMs;
+}

@@ -3,6 +3,7 @@ import Cropper from 'react-easy-crop'
 import { getCroppedImg } from '../utils/cropImage'
 import { Area } from 'react-easy-crop/types'
 import axios from 'axios'
+import { fetchUserTime } from '../services/ImageService'; // Ajusta la ruta según tu estructura
 
 interface Props {
   onAddImage: (name: string, file: File) => Promise<void>
@@ -20,6 +21,56 @@ export default function ImageForm({ onAddImage }: Props) {
   const [rotation, setRotation] = useState(0)
   const [croppedArea, setCroppedArea] = useState<Area | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // Estado para control de tiempo de subida
+  const [remainingMs, setRemainingMs] = useState<number>(0)
+  const [timer, setTimer] = useState<string>('')
+
+  // Función para formatear ms a hh:mm:ss
+  function formatMs(ms: number): string {
+    const totalSeconds = Math.floor(ms / 1000)
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
+  async function fetchTime() {
+  try {
+    const ms = await fetchUserTime();
+    setRemainingMs(ms);
+  } catch (err) {
+    console.error('Error al obtener el tiempo restante:', err);
+    setRemainingMs(0);
+  }
+}
+  
+
+  // Consulta el tiempo restante al montar el componente
+  useEffect(() => {
+    fetchTime();
+  }, [])
+
+  // Actualiza el timer cada segundo si hay tiempo restante
+  useEffect(() => {
+    if (remainingMs <= 0) {
+      setTimer('')
+      return
+    }
+    setTimer(formatMs(remainingMs))
+    const interval = setInterval(() => {
+      setRemainingMs(prev => {
+        if (prev <= 1000) {
+          clearInterval(interval)
+          setTimer('')
+          return 0
+        }
+        setTimer(formatMs(prev - 1000))
+        return prev - 1000
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [remainingMs])
 
   const resetForm = () => {
     setName('')
@@ -63,6 +114,7 @@ export default function ImageForm({ onAddImage }: Props) {
       const croppedFile = new File([blob], file.name, { type: 'image/png' });
       await onAddImage(name, croppedFile);
       closeModal();
+      fetchTime()
     } catch (err: any) {
       if (axios.isAxiosError(err) && err.response?.status === 429) {
         alert('Sólo puedes subir una imagen por día. Inténtalo mañana.');
@@ -82,7 +134,13 @@ export default function ImageForm({ onAddImage }: Props) {
   return (
     <>
       <div style={{ margin: '2% 15%', textAlign: 'right' }}>
-        <button style={{width: '100%' }} onClick={openModal}>Subir Imagen</button>
+        {remainingMs > 0 ? (
+          <button style={{ width: '100%', background: '#444', color: '#fff' }} disabled>
+            Espera {timer} para volver a subir
+          </button>
+        ) : (
+          <button style={{ width: '100%' }} onClick={openModal}>Subir Imagen</button>
+        )}
       </div>
 
       {isModalOpen && (

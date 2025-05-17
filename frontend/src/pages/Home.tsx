@@ -89,7 +89,7 @@ export default function Home() {
     <div className="general-body">
       <header>
         <h1>Open-Canvas</h1>
-        <div style={{ display: 'flex', alignItems: 'center', minWidth: '180px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', minWidth: '180px', colorScheme: "dark" }}>
           {!token ? (
             <GoogleLogin onSuccess={handleLogin} onError={() => console.log('Login Failed')} theme="filled_black" />
           ) : (

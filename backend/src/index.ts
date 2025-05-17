@@ -22,7 +22,7 @@ app.use(cors({
 console.log('CORS enabled for:', process.env.VITE_API_URL);
 
 // CORS abierto solo para /api/public
-app.use('/api/v1/image', cors(), publicRoutes);
+app.use('/api/v1/images', cors(), publicRoutes);
 
 app.use('/api/images', imageRoutes);
 

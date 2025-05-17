@@ -192,4 +192,72 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// GET /images/time
+router.get('/time', async (req: Request, res: Response) => {
+  try {
+    // Extrae token
+    const auth = req.headers.authorization;
+    const token = auth && auth.startsWith('Bearer ')
+      ? auth.slice(7)
+      : req.query.token || req.body?.token;
+
+    if (!token || typeof token !== 'string') {
+      res.status(401).json({ error: 'Token faltante' });
+      return;
+    }
+
+    // Verifica Google token
+    let payload: { email?: string };
+    try {
+      const result = await verifyGoogleToken(token);
+      if (!result || !result.email) {
+        res.status(401).json({ error: 'Token inválido o no contiene email' });
+        return;
+      }
+      payload = result;
+    } catch (err) {
+      console.error('Token inválido:', err);
+      res.status(401).json({ error: 'Token inválido' });
+      return;
+    }
+
+    // Busca la última imagen subida hoy por este usuario
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    console.log('Buscando imágenes subidas hoy por:', payload.email);
+    console.log('Rango de fechas:', startOfDay, endOfDay);
+
+    const lastImage = await prisma.image.findFirst({
+      where: {
+        userEmail: payload.email,
+        createdAt: {
+          gte: startOfDay,
+          lt: endOfDay
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    console.log('Última imagen:', lastImage);
+
+    if (!lastImage) {
+      // Puede subir inmediatamente
+      res.json({ remainingMs: 0 });
+      return;
+    }
+
+    // Calcula cuánto falta para el próximo día
+    const now = new Date();
+    const msToNextDay = endOfDay.getTime() - now.getTime();
+    res.json({ remainingMs: msToNextDay });
+  } catch (error) {
+    console.error('Error checking user upload time:', error);
+    res.status(500).json({ error: 'Error checking user upload time' });
+  }
+});
+
+
+
 export default router;
