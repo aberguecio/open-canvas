@@ -106,8 +106,9 @@ export default function ImageForm({ onAddImage }: Props) {
     if (!file || !imageSrc || !croppedArea) return
     setLoading(true)
     try {
-      const blob = await getCroppedImg(imageSrc, croppedArea, rotation)
-      const croppedFile = new File([blob], file.name, { type: 'image/png' });
+      const blob = await getCroppedImg(imageSrc, croppedArea, rotation);
+      const originalName = file.name.replace(/\.[^/.]+$/, '');
+      const croppedFile = new File([blob], `${originalName}.webp`, { type: 'image/webp' });
       await onAddImage(name, croppedFile);
       closeModal();
       fetchTime()

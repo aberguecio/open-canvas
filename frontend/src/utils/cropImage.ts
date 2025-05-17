@@ -46,12 +46,12 @@ export async function getCroppedImg(
   const outputCtx = outputCanvas.getContext('2d')!
   outputCtx.putImageData(data, 0, 0)
 
-  // Convierte a Blob PNG
+  // Convierte a Blob WebP
   return new Promise<Blob>((resolve, reject) => {
     outputCanvas.toBlob(blob => {
       if (!blob) return reject(new Error('Canvas is empty'))
       resolve(blob)
-    }, 'image/png')
+    }, 'image/webp')
   })
 }
 
