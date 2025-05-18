@@ -115,6 +115,9 @@ export default function ImageForm({ onAddImage }: Props) {
     } catch (err: any) {
       if (axios.isAxiosError(err) && err.response?.status === 429) {
         alert('Sólo puedes subir una imagen por día. Inténtalo mañana.');
+      }else if (axios.isAxiosError(err) && err.response?.status === 422) {
+        alert('La imagen no pasó la moderación.');
+        fetchTime()
       } else {
         console.error(err);
         alert('Error al procesar o subir la imagen');

@@ -17,6 +17,7 @@ model Image {
   isFavorite Boolean  @default(false) 
   createdAt  DateTime @default(now())
   lastQueuedAt DateTime @default(now())
+  flagged    String?
 }
 
 model Scheduler {

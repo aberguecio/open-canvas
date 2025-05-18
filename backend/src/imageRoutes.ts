@@ -11,6 +11,7 @@ import { s3 } from './s3Client';
 import { prisma } from './prisma';
 import { verifyGoogleToken } from './verifyGoogleToken';
 import { Image } from '@prisma/client';
+import OpenAI from "openai";
 
 const router = Router();
 const upload = multer({
@@ -20,6 +21,23 @@ const upload = multer({
     else cb(new Error('Solo se permiten imágenes'));
   }
 });
+
+const openai = new OpenAI();
+
+// Función para moderar una imagen por URL
+async function moderateImageUrl(imageUrl: string): Promise<any> {
+  const moderation = await openai.moderations.create({
+    model: "omni-moderation-latest",
+    input: [
+      {
+        type: "image_url",
+        image_url: { url: imageUrl }
+      }
+    ]
+  });
+  // Devuelve true si está flaggeada (no pasa la moderación)
+  return moderation.results?.[0];
+}
 
 // GET /images
 // Devuelve lista de imágenes con URL firmada y email del usuario
@@ -140,6 +158,29 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
     });
     const signedUrl = await getSignedUrl(s3, getCmd, { expiresIn: 3600 });
 
+    // MODERACIÓN: verifica la imagen subida
+    const moderation = await moderateImageUrl(signedUrl);
+    if (moderation.flagged) {
+      // Obtiene las categorías que son true
+      const categories = moderation.categories || {};
+      const flaggedCategories = Object.entries(categories)
+        .filter(([_, value]) => value === true)
+        .map(([key]) => key)
+        .join(', ');
+
+      console.log('Imagen flaggeada:', image.id, 'Categorías:', flaggedCategories);
+
+      await prisma.image.update({
+        where: { id: image.id },
+        data: { 
+          isVisible: false,
+          flagged: flaggedCategories || 'true',
+        }
+      });
+      res.status(422).json({ error: 'Imagen no permitida', categories: flaggedCategories });
+      return;
+    }
+
     res.status(201).json({
       id: image.id,
       name: image.name,
@@ -175,7 +216,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     });
 
     if (current && current.id === id) {
-      res.status(400).json({ error: 'No se puede eliminar la imagen actual' });
+      res.status(409).json({ error: 'No se puede eliminar la imagen actual' });
       return 
     }
 
@@ -227,9 +268,6 @@ router.get('/time', async (req: Request, res: Response) => {
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
 
-    console.log('Buscando imágenes subidas hoy por:', payload.email);
-    console.log('Rango de fechas:', startOfDay, endOfDay);
-
     const lastImage = await prisma.image.findFirst({
       where: {
         userEmail: payload.email,
@@ -240,7 +278,6 @@ router.get('/time', async (req: Request, res: Response) => {
       },
       orderBy: { createdAt: 'desc' }
     });
-    console.log('Última imagen:', lastImage);
 
     if (!lastImage) {
       // Puede subir inmediatamente
@@ -257,7 +294,5 @@ router.get('/time', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error checking user upload time' });
   }
 });
-
-
 
 export default router;
