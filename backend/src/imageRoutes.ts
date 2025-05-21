@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer, { FileFilterCallback } from 'multer';
+
 import {
   PutObjectCommand,
   GetObjectCommand,
@@ -7,6 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
+import { Jimp, JimpMime  } from 'jimp';          // 👈  NUEVA forma
 import { s3 } from './s3Client';
 import { prisma } from './prisma';
 import { verifyGoogleToken } from './verifyGoogleToken';
@@ -104,7 +106,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
 
     if (!req.file) {
       res.status(400).json({ error: 'Se debe subir un archivo bajo el campo "file"' });
-      return 
+      return;
     }
 
     const startOfDay = new Date();
@@ -131,27 +133,48 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
     // Procesa imagen
     const processed = await sharp(req.file.buffer)
       .resize(800, 480, { fit: 'cover' })
+      .toFormat('webp')
       .toBuffer();
 
-    const fileKey = `${Date.now()}-${req.file.originalname}`;
+    const resize = await sharp(req.file.buffer)
+      .resize(800, 480, { fit: 'cover' })
+      .toFormat('png')
+      .toBuffer();
+
+    const bmpBuffer = await (await Jimp.read(resize)).getBuffer(JimpMime.bmp);
+
+    const baseName = req.file.originalname.replace(/\.[^/.]+$/, '');
+    const fileKey = `${Date.now()}-${baseName}.webp`;
+    const bmpKey = `${Date.now()}-${baseName}.bmp`;
+
+    // Sube imagen webp
     await s3.send(new PutObjectCommand({
       Bucket: process.env.S3_BUCKET!,
       Key: fileKey,
       Body: processed,
-      ContentType: req.file.mimetype
+      ContentType: 'image/webp'
     }));
 
-    // Guarda en BD incluyendo email
+    // Sube imagen bmp
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET!,
+      Key: bmpKey,
+      Body: bmpBuffer,
+      ContentType: 'image/bmp'
+    }));
+
+    // Guarda en BD incluyendo ambos keys
     const image = await prisma.image.create({
       data: {
         key: fileKey,
+        bmpKey: bmpKey,
         name: req.body.name || req.file.originalname,
         userName: payload.name!,
         userEmail: payload.email!
       }
     });
 
-    // Genera URL firmada
+    // Genera URL firmada para la imagen webp
     const getCmd = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET!,
       Key: image.key

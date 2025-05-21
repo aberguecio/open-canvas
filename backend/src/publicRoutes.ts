@@ -25,7 +25,7 @@ router.get('/', async (_req: Request, res: Response) => {
 
   const cmd = new GetObjectCommand({
     Bucket: process.env.S3_BUCKET!,
-    Key: image.key
+    Key: image.bmpKey
   });
   const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
   const remainingMs = getRemainingMs();

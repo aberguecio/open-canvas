@@ -10,6 +10,7 @@ datasource db {
 model Image {
   id         Int      @id @default(autoincrement())
   key        String
+  bmpKey     String   
   name       String
   userName   String
   userEmail  String
