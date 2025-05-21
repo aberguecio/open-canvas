@@ -63,7 +63,8 @@ router.get('/all', mustBeAdmin, async (_req: Request, res: Response) => {
           userName: img.userName,
           userEmail: img.userEmail,
           isVisible: img.isVisible,
-          isFavorite: img.isFavorite
+          isFavorite: img.isFavorite,
+          flagged: img.flagged,
         };
       })
     );

@@ -41,6 +41,98 @@ async function moderateImageUrl(imageUrl: string): Promise<any> {
   return moderation.results?.[0];
 }
 
+async function convertTo7ColorDitheredBMP(
+  inputBuffer: Buffer,
+  width = 800,
+  height = 480
+): Promise<Buffer> {
+  // 1) Redimensiona y extrae raw RGB
+  const { data, info } = await sharp(inputBuffer)
+    .resize(width, height, { fit: 'cover' })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const w = info.width;
+  const h = info.height;
+  const pixels = new Uint8ClampedArray(data); // [R,G,B, R,G,B, …]
+
+  // 2) Define paleta de 7 colores + blanco
+  const PALETTE: [number, number, number][] = [
+    [255, 255, 255], // blanco
+    [0,   0,   0  ], // negro
+    [255, 0,   0  ], // rojo
+    [255, 165, 0  ], // naranja
+    [255, 255, 0  ], // amarillo
+    [0,   128, 0  ], // verde
+    [0,   0,   255]  // azul
+  ];
+
+  // auxiliar: encuentra índice del color más cercano
+  function closestColorIndex(r: number, g: number, b: number): number {
+    let best = 0, bestDist = Infinity;
+    for (let i = 0; i < PALETTE.length; i++) {
+      const [pr, pg, pb] = PALETTE[i];
+      const dr = r - pr, dg = g - pg, db = b - pb;
+      const dist = dr*dr + dg*dg + db*db;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  // 3) Floyd–Steinberg dithering
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 3;
+      const oldR = pixels[idx];
+      const oldG = pixels[idx+1];
+      const oldB = pixels[idx+2];
+
+      const ci = closestColorIndex(oldR, oldG, oldB);
+      const [newR, newG, newB] = PALETTE[ci];
+
+      // establece nuevo color
+      pixels[idx]   = newR;
+      pixels[idx+1] = newG;
+      pixels[idx+2] = newB;
+
+      // error
+      const errR = oldR - newR;
+      const errG = oldG - newG;
+      const errB = oldB - newB;
+
+      // difundir
+      const diffuse = (dx: number, dy: number, factor: number) => {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || nx >= w || ny < 0 || ny >= h) return;
+        const nidx = (ny * w + nx) * 3;
+        pixels[nidx  ] = Math.max(0, Math.min(255, pixels[nidx  ] + errR * factor));
+        pixels[nidx+1] = Math.max(0, Math.min(255, pixels[nidx+1] + errG * factor));
+        pixels[nidx+2] = Math.max(0, Math.min(255, pixels[nidx+2] + errB * factor));
+      };
+
+      diffuse( 1,  0, 7/16);
+      diffuse(-1,  1, 3/16);
+      diffuse( 0,  1, 5/16);
+      diffuse( 1,  1, 1/16);
+    }
+  }
+
+  // 4) Reconstruye BMP desde raw RGB
+  const pngBuffer = await sharp(Buffer.from(pixels), {
+    raw: { width: w, height: h, channels: 3 }
+  })
+    .toFormat('png')
+    .toBuffer();
+
+  const outBuffer = await (await Jimp.read(pngBuffer)).getBuffer(JimpMime.bmp);
+
+  return outBuffer;
+}
+
 // GET /images
 // Devuelve lista de imágenes con URL firmada y email del usuario
 router.get('/', async (_req: Request, res: Response) => {
@@ -136,12 +228,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       .toFormat('webp')
       .toBuffer();
 
-    const resize = await sharp(req.file.buffer)
-      .resize(800, 480, { fit: 'cover' })
-      .toFormat('png')
-      .toBuffer();
-
-    const bmpBuffer = await (await Jimp.read(resize)).getBuffer(JimpMime.bmp);
+    const bmpBuffer = await convertTo7ColorDitheredBMP(processed)
 
     const baseName = req.file.originalname.replace(/\.[^/.]+$/, '');
     const fileKey = `${Date.now()}-${baseName}.webp`;
@@ -317,5 +404,7 @@ router.get('/time', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error checking user upload time' });
   }
 });
+
+
 
 export default router;
