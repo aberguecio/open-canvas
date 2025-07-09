@@ -343,6 +343,39 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// GET /images/:id/bmp           → JSON { url: ... }
+// GET /images/:id/bmp?redirect=1 → 302 Location: ...
+router.get('/:id/bmp', async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'ID inválido' });
+      return;
+    }
+
+    const image = await prisma.image.findUnique({ where: { id } });
+    if (!image || !image.bmpKey) {
+      res.status(404).json({ error: 'Imagen BMP no encontrada' });
+      return;
+    }
+
+    const cmd = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET!,
+      Key: image.bmpKey
+    });
+    const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+
+    if (req.query.redirect === '1') {
+      res.redirect(url);
+    } else {
+      res.json({ url });
+    }
+  } catch (err) {
+    console.error('Error obteniendo BMP:', err);
+    res.status(500).json({ error: 'Error obteniendo BMP' });
+  }
+});
+
 // GET /images/time
 router.get('/time', async (req: Request, res: Response) => {
   try {

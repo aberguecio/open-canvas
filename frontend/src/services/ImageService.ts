@@ -11,14 +11,12 @@ export interface Image {
   userEmail: string;
 }
 
-// Ajusta a tu URL real o usa import.meta.env
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
 export const api = axios.create({
   baseURL: API_BASE,
 });
 
-// Llama esto tras hacer login
 export function setAuthToken(token: string) {
   api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 }
@@ -62,4 +60,9 @@ export function requeueImage(id:number) { return api.post(`/api/admin/${id}/requ
 export async function fetchUserTime(): Promise<number> {
   const res = await api.get<{ remainingMs: number }>('/api/images/time');
   return res.data.remainingMs;
+}
+
+export async function fetchBmpUrl(id: number): Promise<string> {
+  const { data } = await api.get<{ url: string }>(`/api/images/${id}/bmp`);
+  return data.url;
 }
