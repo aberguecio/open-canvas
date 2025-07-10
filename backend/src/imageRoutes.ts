@@ -325,34 +325,77 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
 });
 
 // DELETE /images/:id
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
+    // 1. Extract and verify the user token
+    const auth = req.headers.authorization;
+    const token = auth?.startsWith('Bearer ') ? auth.slice(7) : undefined;
+
+    if (!token) {
+      res.status(401).json({ error: 'Missing token' });
+      return;
+    }
+
+    let payload: { email?: string };
+    try {
+      const result = await verifyGoogleToken(token);
+      if (!result || !result.email) {
+        res.status(401).json({ error: 'Invalid token' });
+        return;
+      }
+      payload = result;
+    } catch (err) {
+      console.error('Error verifying token for deletion:', err);
+      res.status(401).json({ error: 'Invalid token' });
+      return;
+    }
+
+    // 2. Get the image to delete
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
       res.status(400).json({ error: 'Invalid ID' });
-      return 
+      return;
     }
 
     const image = await prisma.image.findUnique({ where: { id } });
     if (!image) {
       res.status(404).json({ error: 'Image not found' });
-      return 
+      return;
     }
 
-    const current = await prisma.image.findFirst({
-      where: { isVisible: true },
-      orderBy: { lastQueuedAt: 'asc' }
-    });
+    // 3. Check permissions
+    const isAdmin = payload.email === process.env.ADMIN_EMAIL;
+    const isOwner = payload.email === image.userEmail;
 
-    if (current && current.id === id) {
-      res.status(409).json({ error: 'You cannot delete the current image' });
-      return 
+    if (!isAdmin && !isOwner) {
+      res.status(403).json({ error: 'You do not have permission to delete this image' });
+      return;
     }
 
+    // 4. Check if it is the current image (for non-admins only)
+    if (!isAdmin) {
+      const current = await prisma.image.findFirst({
+        where: { isVisible: true },
+        orderBy: { lastQueuedAt: 'asc' }
+      });
+
+      if (current && current.id === id) {
+        res.status(409).json({ error: 'You cannot delete the image that is currently being displayed' });
+        return;
+      }
+    }
+
+    // 5. Delete from S3 and the database
     await s3.send(new DeleteObjectCommand({
       Bucket: process.env.S3_BUCKET!,
       Key: image.key
     }));
+    if (image.bmpKey) {
+      await s3.send(new DeleteObjectCommand({
+        Bucket: process.env.S3_BUCKET!,
+        Key: image.bmpKey
+      }));
+    }
 
     await prisma.image.delete({ where: { id } });
     res.status(204).end();
