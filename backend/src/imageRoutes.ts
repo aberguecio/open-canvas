@@ -8,7 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
-import { Jimp, JimpMime  } from 'jimp';          // 👈  NUEVA forma
+import { Jimp, JimpMime  } from 'jimp';          
 import { s3 } from './s3Client';
 import { prisma } from './prisma';
 import { verifyGoogleToken } from './verifyGoogleToken';
@@ -46,7 +46,8 @@ async function convertTo7ColorDitheredBMP(
   width = 800,
   height = 480
 ): Promise<Buffer> {
-  // 1) Redimensiona y extrae raw RGB
+
+  // 1. Redimensionar y obtener RAW RGB
   const { data, info } = await sharp(inputBuffer)
     .resize(width, height, { fit: 'cover' })
     .removeAlpha()
@@ -57,7 +58,7 @@ async function convertTo7ColorDitheredBMP(
   const h = info.height;
   const pixels = new Uint8ClampedArray(data); // [R,G,B, R,G,B, …]
 
-  // 2) Define paleta de 7 colores + blanco
+  // 2. Paleta de 7 colores
   const PALETTE: [number, number, number][] = [
     [255, 255, 255], // blanco
     [0,   0,   0  ], // negro
@@ -68,52 +69,43 @@ async function convertTo7ColorDitheredBMP(
     [0,   0,   255]  // azul
   ];
 
-  // auxiliar: encuentra índice del color más cercano
-  function closestColorIndex(r: number, g: number, b: number): number {
+  // Auxiliar para buscar el índice más cercano
+  const closestColorIndex = (r: number, g: number, b: number): number => {
     let best = 0, bestDist = Infinity;
     for (let i = 0; i < PALETTE.length; i++) {
       const [pr, pg, pb] = PALETTE[i];
       const dr = r - pr, dg = g - pg, db = b - pb;
       const dist = dr*dr + dg*dg + db*db;
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = i;
-      }
+      if (dist < bestDist) { bestDist = dist; best = i; }
     }
     return best;
-  }
+  };
 
-  // 3) Floyd–Steinberg dithering
+  // 3. Floyd–Steinberg + generación de índice
+  const indexBuf = new Uint8Array(w * h); // 1 byte/píxel
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = (y * w + x) * 3;
-      const oldR = pixels[idx];
-      const oldG = pixels[idx+1];
-      const oldB = pixels[idx+2];
-
-      const ci = closestColorIndex(oldR, oldG, oldB);
+      const oldR = pixels[idx], oldG = pixels[idx+1], oldB = pixels[idx+2];
+      const ci   = closestColorIndex(oldR, oldG, oldB);
       const [newR, newG, newB] = PALETTE[ci];
 
-      // establece nuevo color
-      pixels[idx]   = newR;
-      pixels[idx+1] = newG;
-      pixels[idx+2] = newB;
+      // guarda índice paletizado
+      indexBuf[y * w + x] = ci;
 
       // error
       const errR = oldR - newR;
       const errG = oldG - newG;
       const errB = oldB - newB;
 
-      // difundir
-      const diffuse = (dx: number, dy: number, factor: number) => {
+      const diffuse = (dx: number, dy: number, f: number) => {
         const nx = x + dx, ny = y + dy;
         if (nx < 0 || nx >= w || ny < 0 || ny >= h) return;
         const nidx = (ny * w + nx) * 3;
-        pixels[nidx  ] = Math.max(0, Math.min(255, pixels[nidx  ] + errR * factor));
-        pixels[nidx+1] = Math.max(0, Math.min(255, pixels[nidx+1] + errG * factor));
-        pixels[nidx+2] = Math.max(0, Math.min(255, pixels[nidx+2] + errB * factor));
+        pixels[nidx  ] = Math.max(0, Math.min(255, pixels[nidx  ] + errR * f));
+        pixels[nidx+1] = Math.max(0, Math.min(255, pixels[nidx+1] + errG * f));
+        pixels[nidx+2] = Math.max(0, Math.min(255, pixels[nidx+2] + errB * f));
       };
-
       diffuse( 1,  0, 7/16);
       diffuse(-1,  1, 3/16);
       diffuse( 0,  1, 5/16);
@@ -121,17 +113,57 @@ async function convertTo7ColorDitheredBMP(
     }
   }
 
-  // 4) Reconstruye BMP desde raw RGB
-  const pngBuffer = await sharp(Buffer.from(pixels), {
-    raw: { width: w, height: h, channels: 3 }
-  })
-    .toFormat('png')
-    .toBuffer();
+  // 4. Codificar BMP 8 bpp con paleta de 7 colores
+  const paletteSize   = PALETTE.length;            // 7
+  const rowSize       = ((w + 3) >> 2) << 2;       // alineado a 4 bytes
+  const pixelBytes    = rowSize * h;
+  const headerSize    = 14 + 40;
+  const paletteBytes  = paletteSize * 4;
+  const fileSize      = headerSize + paletteBytes + pixelBytes;
+  const bmp = Buffer.alloc(fileSize);
 
-  const outBuffer = await (await Jimp.read(pngBuffer)).getBuffer(JimpMime.bmp);
+  // -- BITMAPFILEHEADER (14 B) --
+  bmp.writeUInt16LE(0x4D42, 0);          // 'BM'
+  bmp.writeUInt32LE(fileSize,  2);
+  bmp.writeUInt32LE(0,          6);      // reservado
+  bmp.writeUInt32LE(headerSize + paletteBytes, 10); // offset datos
 
-  return outBuffer;
+  // -- BITMAPINFOHEADER (40 B) --
+  bmp.writeUInt32LE(40, 14);             // tamaño header
+  bmp.writeInt32LE( w, 18);
+  bmp.writeInt32LE( h, 22);
+  bmp.writeUInt16LE(1, 26);              // planes
+  bmp.writeUInt16LE(8, 28);              // 8 bpp
+  bmp.writeUInt32LE(0, 30);              // BI_RGB
+  bmp.writeUInt32LE(pixelBytes, 34);
+  bmp.writeInt32LE(2835, 38);            // 72 dpi
+  bmp.writeInt32LE(2835, 42);
+  bmp.writeUInt32LE(paletteSize, 46);    // colores usados
+  bmp.writeUInt32LE(paletteSize, 50);    // importantes
+
+  // -- Tabla de colores --
+  for (let i = 0; i < paletteSize; i++) {
+    const [r,g,b] = PALETTE[i];
+    const off = headerSize + i*4;
+    bmp[off]   = b;
+    bmp[off+1] = g;
+    bmp[off+2] = r;
+    bmp[off+3] = 0;
+  }
+
+  // -- Datos de píxeles (fila invertida y padded) --
+  for (let y = 0; y < h; y++) {
+    const srcRow = h - 1 - y;            // BMP bottom-up
+    const dstOff = headerSize + paletteBytes + y * rowSize;
+    bmp.set(
+      indexBuf.subarray(srcRow * w, srcRow * w + w),
+      dstOff
+    );    // padding ya es 0
+  }
+
+  return bmp;                            // 8 bpp indexado
 }
+
 
 // GET /images
 // Devuelve lista de imágenes con URL firmada y email del usuario
