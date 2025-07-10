@@ -8,7 +8,6 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
-import { Jimp, JimpMime  } from 'jimp';          
 import { s3 } from './s3Client';
 import { prisma } from './prisma';
 import { verifyGoogleToken } from './verifyGoogleToken';
@@ -20,13 +19,13 @@ const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb: FileFilterCallback) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Solo se permiten imágenes'));
+    else cb(new Error('Only images are allowed'));
   }
 });
 
 const openai = new OpenAI();
 
-// Función para moderar una imagen por URL
+// Function to moderate an image by URL
 async function moderateImageUrl(imageUrl: string): Promise<any> {
   const moderation = await openai.moderations.create({
     model: "omni-moderation-latest",
@@ -37,7 +36,7 @@ async function moderateImageUrl(imageUrl: string): Promise<any> {
       }
     ]
   });
-  // Devuelve true si está flaggeada (no pasa la moderación)
+  // Returns true if it's flagged (does not pass moderation)
   return moderation.results?.[0];
 }
 
@@ -47,7 +46,7 @@ async function convertTo7ColorDitheredBMP(
   height = 480
 ): Promise<Buffer> {
 
-  // 1. Redimensionar y obtener RAW RGB
+  // 1. Resize and get RAW RGB
   const { data, info } = await sharp(inputBuffer)
     .resize(width, height, { fit: 'cover' })
     .removeAlpha()
@@ -56,117 +55,105 @@ async function convertTo7ColorDitheredBMP(
 
   const w = info.width;
   const h = info.height;
-  const pixels = new Uint8ClampedArray(data); // [R,G,B, R,G,B, …]
+  const pixels = new Uint8ClampedArray(data);
 
-  // 2. Paleta de 7 colores
+  // 2. 7-color palette
   const PALETTE: [number, number, number][] = [
-    [255, 255, 255], // blanco
-    [0,   0,   0  ], // negro
-    [255, 0,   0  ], // rojo
-    [255, 165, 0  ], // naranja
-    [255, 255, 0  ], // amarillo
-    [0,   128, 0  ], // verde
-    [0,   0,   255]  // azul
+    [255,255,255], [0,0,0],
+    [255,0,0],     [255,165,0],
+    [255,255,0],   [0,128,0],
+    [0,0,255]
   ];
 
-  // Auxiliar para buscar el índice más cercano
-  const closestColorIndex = (r: number, g: number, b: number): number => {
-    let best = 0, bestDist = Infinity;
-    for (let i = 0; i < PALETTE.length; i++) {
-      const [pr, pg, pb] = PALETTE[i];
-      const dr = r - pr, dg = g - pg, db = b - pb;
-      const dist = dr*dr + dg*dg + db*db;
-      if (dist < bestDist) { bestDist = dist; best = i; }
+  const closestColorIndex = (r:number,g:number,b:number):number => {
+    let best=0, bd=Infinity;
+    for(let i=0;i<PALETTE.length;i++){
+      const [pr,pg,pb]=PALETTE[i];
+      const d=(r-pr)**2+(g-pg)**2+(b-pb)**2;
+      if(d<bd){ bd=d; best=i; }
     }
     return best;
   };
 
-  // 3. Floyd–Steinberg + generación de índice
-  const indexBuf = new Uint8Array(w * h); // 1 byte/píxel
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = (y * w + x) * 3;
-      const oldR = pixels[idx], oldG = pixels[idx+1], oldB = pixels[idx+2];
-      const ci   = closestColorIndex(oldR, oldG, oldB);
-      const [newR, newG, newB] = PALETTE[ci];
-
-      // guarda índice paletizado
-      indexBuf[y * w + x] = ci;
-
-      // error
-      const errR = oldR - newR;
-      const errG = oldG - newG;
-      const errB = oldB - newB;
-
-      const diffuse = (dx: number, dy: number, f: number) => {
-        const nx = x + dx, ny = y + dy;
-        if (nx < 0 || nx >= w || ny < 0 || ny >= h) return;
-        const nidx = (ny * w + nx) * 3;
-        pixels[nidx  ] = Math.max(0, Math.min(255, pixels[nidx  ] + errR * f));
-        pixels[nidx+1] = Math.max(0, Math.min(255, pixels[nidx+1] + errG * f));
-        pixels[nidx+2] = Math.max(0, Math.min(255, pixels[nidx+2] + errB * f));
-      };
-      diffuse( 1,  0, 7/16);
-      diffuse(-1,  1, 3/16);
-      diffuse( 0,  1, 5/16);
-      diffuse( 1,  1, 1/16);
+  // 3. Dither + generate indices (0–6)
+  const indexBuf = new Uint8Array(w*h);
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const idx=(y*w+x)*3;
+      const oldR=pixels[idx], oldG=pixels[idx+1], oldB=pixels[idx+2];
+      const ci=closestColorIndex(oldR,oldG,oldB);
+      const [nr,ng,nb]=PALETTE[ci];
+      indexBuf[y*w+x]=ci;
+      const eR=oldR-nr, eG=oldG-ng, eB=oldB-nb;
+      [[1,0,7/16],[-1,1,3/16],[0,1,5/16],[1,1,1/16]]
+        .forEach(([dx,dy,f])=>{
+          const nx=x+dx, ny=y+dy;
+          if(nx<0||nx>=w||ny<0||ny>=h) return;
+          const nidx=(ny*w+nx)*3;
+          pixels[nidx  ]=Math.max(0,Math.min(255,pixels[nidx  ]+eR*f));
+          pixels[nidx+1]=Math.max(0,Math.min(255,pixels[nidx+1]+eG*f));
+          pixels[nidx+2]=Math.max(0,Math.min(255,pixels[nidx+2]+eB*f));
+        });
     }
   }
 
-  // 4. Codificar BMP 8 bpp con paleta de 7 colores
-  const paletteSize   = PALETTE.length;            // 7
-  const rowSize       = ((w + 3) >> 2) << 2;       // alineado a 4 bytes
-  const pixelBytes    = rowSize * h;
-  const headerSize    = 14 + 40;
-  const paletteBytes  = paletteSize * 4;
-  const fileSize      = headerSize + paletteBytes + pixelBytes;
+  // 4. Build 4 bpp BMP
+  const paletteSize = PALETTE.length;           // 7
+  const bytesPerLine = Math.ceil(w/2);          // 2 pix/byte
+  const rowSize     = ((bytesPerLine + 3) >> 2) << 2; // align to 4
+  const pixelBytes  = rowSize * h;
+  const headerSize  = 14 + 40;
+  const paletteBytes= 16 * 4;                   // table of 16 entries
+  const fileSize    = headerSize + paletteBytes + pixelBytes;
   const bmp = Buffer.alloc(fileSize);
 
-  // -- BITMAPFILEHEADER (14 B) --
-  bmp.writeUInt16LE(0x4D42, 0);          // 'BM'
-  bmp.writeUInt32LE(fileSize,  2);
-  bmp.writeUInt32LE(0,          6);      // reservado
-  bmp.writeUInt32LE(headerSize + paletteBytes, 10); // offset datos
+  // BITMAPFILEHEADER
+  bmp.writeUInt16LE(0x4D42, 0);
+  bmp.writeUInt32LE(fileSize,2);
+  bmp.writeUInt32LE(0,6);
+  bmp.writeUInt32LE(headerSize + paletteBytes,10);
 
-  // -- BITMAPINFOHEADER (40 B) --
-  bmp.writeUInt32LE(40, 14);             // tamaño header
-  bmp.writeInt32LE( w, 18);
-  bmp.writeInt32LE( h, 22);
-  bmp.writeUInt16LE(1, 26);              // planes
-  bmp.writeUInt16LE(8, 28);              // 8 bpp
-  bmp.writeUInt32LE(0, 30);              // BI_RGB
-  bmp.writeUInt32LE(pixelBytes, 34);
-  bmp.writeInt32LE(2835, 38);            // 72 dpi
-  bmp.writeInt32LE(2835, 42);
-  bmp.writeUInt32LE(paletteSize, 46);    // colores usados
-  bmp.writeUInt32LE(paletteSize, 50);    // importantes
+  // BITMAPINFOHEADER
+  bmp.writeUInt32LE(40,14);
+  bmp.writeInt32LE(w,18);
+  bmp.writeInt32LE(h,22);
+  bmp.writeUInt16LE(1,26);
+  bmp.writeUInt16LE(4,28);           // 4 bpp!
+  bmp.writeUInt32LE(0,30);
+  bmp.writeUInt32LE(pixelBytes,34);
+  bmp.writeInt32LE(2835,38);
+  bmp.writeInt32LE(2835,42);
+  bmp.writeUInt32LE(paletteSize,46);
+  bmp.writeUInt32LE(paletteSize,50);
 
-  // -- Tabla de colores --
-  for (let i = 0; i < paletteSize; i++) {
-    const [r,g,b] = PALETTE[i];
-    const off = headerSize + i*4;
-    bmp[off]   = b;
-    bmp[off+1] = g;
-    bmp[off+2] = r;
-    bmp[off+3] = 0;
+  // Palette: 16 entries, fill only 7, rest stays zero
+  for(let i=0;i<paletteSize;i++){
+    const [r,g,b]=PALETTE[i];
+    const off=headerSize + i*4;
+    bmp[off]  = b;
+    bmp[off+1]= g;
+    bmp[off+2]= r;
+    bmp[off+3]= 0;
   }
 
-  // -- Datos de píxeles (fila invertida y padded) --
-  for (let y = 0; y < h; y++) {
-    const srcRow = h - 1 - y;            // BMP bottom-up
-    const dstOff = headerSize + paletteBytes + y * rowSize;
-    bmp.set(
-      indexBuf.subarray(srcRow * w, srcRow * w + w),
-      dstOff
-    );    // padding ya es 0
+  // 5. Pack two indices (4b each) per byte, inverted row
+  const pixelDataOffset = headerSize + paletteBytes;
+  for(let y=0;y<h;y++){
+    const srcRow = h - 1 - y;
+    let dst = pixelDataOffset + y * rowSize;
+    for(let x=0; x<w; x+=2) {
+      const i1 = indexBuf[srcRow*w + x]   & 0x0F;
+      const i2 = (x+1 < w ? indexBuf[srcRow*w + x+1] : 0) & 0x0F;
+      bmp[dst++] = (i1 << 4) | i2;
+    }
+    // padding between dst and (pixelDataOffset+y*rowSize) is already 0
   }
 
-  return bmp;                            // 8 bpp indexado
+  return bmp;
 }
 
-
 // GET /images
-// Devuelve lista de imágenes con URL firmada y email del usuario
+// Returns list of images with signed URL and user email
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const images = await prisma.image.findMany({
@@ -200,36 +187,36 @@ router.get('/', async (_req: Request, res: Response) => {
 });
 
 // POST /images
-// Requiere token en Authorization Bearer o en body.token
+// Requires token in Authorization Bearer or in body.token
 router.post('/', upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
-    // Extrae token
+    // Extract token
     const auth = req.headers.authorization;
     const token = auth && auth.startsWith('Bearer ')
       ? auth.slice(7)
       : req.body.token;
     if (!token) {
-      res.status(401).json({ error: 'Token faltante' });
+      res.status(401).json({ error: 'Missing token' });
       return 
     }
 
-    // Verifica Google token
+    // Verify Google token
     let payload: { email?: string; name?: string };
     try {
       const result = await verifyGoogleToken(token);
       if (!result) {
-        res.status(401).json({ error: 'Token inválido o no contiene datos' });
+        res.status(401).json({ error: 'Invalid token or missing data' });
         return;
       }
       payload = result;
     } catch (err) {
-      console.error('Token inválido:', err);
-      res.status(401).json({ error: 'Token inválido' });
+      console.error('Invalid token:', err);
+      res.status(401).json({ error: 'Invalid token' });
       return 
     }
 
     if (!req.file) {
-      res.status(400).json({ error: 'Se debe subir un archivo bajo el campo "file"' });
+      res.status(400).json({ error: 'A file must be uploaded under the field "file"' });
       return;
     }
 
@@ -238,7 +225,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
 
-    // Cuenta subidas hoy por este usuario
+    // Count today's uploads by this user
     const uploadsToday = await prisma.image.count({
       where: {
         userEmail: payload.email!,
@@ -250,11 +237,11 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
     });
 
     if (uploadsToday >= 1) {
-      res.status(429).json({ error: 'Solo puedes subir una imagen al día' });
+      res.status(429).json({ error: 'You can only upload one image per day' });
       return 
     }
 
-    // Procesa imagen
+    // Process image
     const processed = await sharp(req.file.buffer)
       .resize(800, 480, { fit: 'cover' })
       .toFormat('webp')
@@ -266,7 +253,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
     const fileKey = `${Date.now()}-${baseName}.webp`;
     const bmpKey = `${Date.now()}-${baseName}.bmp`;
 
-    // Sube imagen webp
+    // Upload webp image
     await s3.send(new PutObjectCommand({
       Bucket: process.env.S3_BUCKET!,
       Key: fileKey,
@@ -274,7 +261,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       ContentType: 'image/webp'
     }));
 
-    // Sube imagen bmp
+    // Upload bmp image
     await s3.send(new PutObjectCommand({
       Bucket: process.env.S3_BUCKET!,
       Key: bmpKey,
@@ -282,7 +269,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       ContentType: 'image/bmp'
     }));
 
-    // Guarda en BD incluyendo ambos keys
+    // Save in DB including both keys
     const image = await prisma.image.create({
       data: {
         key: fileKey,
@@ -293,24 +280,24 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       }
     });
 
-    // Genera URL firmada para la imagen webp
+    // Generate signed URL for webp image
     const getCmd = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET!,
       Key: image.key
     });
     const signedUrl = await getSignedUrl(s3, getCmd, { expiresIn: 3600 });
 
-    // MODERACIÓN: verifica la imagen subida
+    // MODERATION: check the uploaded image
     const moderation = await moderateImageUrl(signedUrl);
     if (moderation.flagged) {
-      // Obtiene las categorías que son true
+      // Get the categories that are true
       const categories = moderation.categories || {};
       const flaggedCategories = Object.entries(categories)
         .filter(([_, value]) => value === true)
         .map(([key]) => key)
         .join(', ');
 
-      console.log('Imagen flaggeada:', image.id, 'Categorías:', flaggedCategories);
+      console.log('Flagged image:', image.id, 'Categories:', flaggedCategories);
 
       await prisma.image.update({
         where: { id: image.id },
@@ -319,7 +306,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
           flagged: flaggedCategories || 'true',
         }
       });
-      res.status(422).json({ error: 'Imagen no permitida', categories: flaggedCategories });
+      res.status(422).json({ error: 'Image not allowed', categories: flaggedCategories });
       return;
     }
 
@@ -342,13 +329,13 @@ router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
-      res.status(400).json({ error: 'ID inválido' });
+      res.status(400).json({ error: 'Invalid ID' });
       return 
     }
 
     const image = await prisma.image.findUnique({ where: { id } });
     if (!image) {
-      res.status(404).json({ error: 'Imagen no encontrada' });
+      res.status(404).json({ error: 'Image not found' });
       return 
     }
 
@@ -358,7 +345,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     });
 
     if (current && current.id === id) {
-      res.status(409).json({ error: 'No se puede eliminar la imagen actual' });
+      res.status(409).json({ error: 'You cannot delete the current image' });
       return 
     }
 
@@ -381,13 +368,13 @@ router.get('/:id/bmp', async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     if (isNaN(id)) {
-      res.status(400).json({ error: 'ID inválido' });
+      res.status(400).json({ error: 'Invalid ID' });
       return;
     }
 
     const image = await prisma.image.findUnique({ where: { id } });
     if (!image || !image.bmpKey) {
-      res.status(404).json({ error: 'Imagen BMP no encontrada' });
+      res.status(404).json({ error: 'BMP image not found' });
       return;
     }
 
@@ -403,41 +390,41 @@ router.get('/:id/bmp', async (req: Request, res: Response) => {
       res.json({ url });
     }
   } catch (err) {
-    console.error('Error obteniendo BMP:', err);
-    res.status(500).json({ error: 'Error obteniendo BMP' });
+    console.error('Error fetching BMP:', err);
+    res.status(500).json({ error: 'Error fetching BMP' });
   }
 });
 
 // GET /images/time
 router.get('/time', async (req: Request, res: Response) => {
   try {
-    // Extrae token
+    // Extract token
     const auth = req.headers.authorization;
     const token = auth && auth.startsWith('Bearer ')
       ? auth.slice(7)
       : req.query.token || req.body?.token;
 
     if (!token || typeof token !== 'string') {
-      res.status(401).json({ error: 'Token faltante' });
+      res.status(401).json({ error: 'Missing token' });
       return;
     }
 
-    // Verifica Google token
+    // Verify Google token
     let payload: { email?: string };
     try {
       const result = await verifyGoogleToken(token);
       if (!result || !result.email) {
-        res.status(401).json({ error: 'Token inválido o no contiene email' });
+        res.status(401).json({ error: 'Invalid token or missing email' });
         return;
       }
       payload = result;
     } catch (err) {
-      console.error('Token inválido:', err);
-      res.status(401).json({ error: 'Token inválido' });
+      console.error('Invalid token:', err);
+      res.status(401).json({ error: 'Invalid token' });
       return;
     }
 
-    // Busca la última imagen subida hoy por este usuario
+    // Find last image uploaded today by this user
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(startOfDay);
@@ -455,12 +442,12 @@ router.get('/time', async (req: Request, res: Response) => {
     });
 
     if (!lastImage) {
-      // Puede subir inmediatamente
+      // Can upload immediately
       res.json({ remainingMs: 0 });
       return;
     }
 
-    // Calcula cuánto falta para el próximo día
+    // Calculate how much time until next day
     const now = new Date();
     const msToNextDay = endOfDay.getTime() - now.getTime();
     res.json({ remainingMs: msToNextDay });
@@ -469,7 +456,5 @@ router.get('/time', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error checking user upload time' });
   }
 });
-
-
 
 export default router;
