@@ -5,20 +5,22 @@ services:
       context: ./frontend
       dockerfile: dockerfile.prod
     restart: unless-stopped
-    ports:
-      - "5173:80"
     env_file:
       - ./frontend/.env
     networks:
       - webapp
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.canvas-frontend.rule=Host(`canvas.berguecio.cl`)"
+      - "traefik.http.routers.canvas-frontend.entrypoints=websecure"
+      - "traefik.http.routers.canvas-frontend.tls=true"
+      - "traefik.http.services.canvas-frontend.loadbalancer.server.port=80"
 
   backend:
     build:
       context: ./backend
       dockerfile: dockerfile.prod
     restart: unless-stopped
-    ports:
-      - "4000:4000"
     env_file:
       - ./backend/.env
     depends_on:
@@ -30,6 +32,12 @@ services:
       "
     networks:
       - webapp
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.canvas-backend.rule=Host(`canvas.berguecio.cl`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.canvas-backend.entrypoints=websecure"
+      - "traefik.http.routers.canvas-backend.tls=true"
+      - "traefik.http.services.canvas-backend.loadbalancer.server.port=4000"
 
   postgres:
     image: postgres:16
