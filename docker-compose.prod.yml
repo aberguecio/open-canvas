@@ -8,14 +8,15 @@ services:
     env_file:
       - ./frontend/.env
     networks:
-      - webapp
+      - proxy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.canvas-frontend.rule=Host(`canvas.berguecio.cl`)"
       - "traefik.http.routers.canvas-frontend.entrypoints=websecure"
       - "traefik.http.routers.canvas-frontend.tls=true"
       - "traefik.http.services.canvas-frontend.loadbalancer.server.port=80"
-
+      - "traefik.docker.network=proxy"
+      - "monitoring.url=https://canvas.berguecio.cl"
   backend:
     build:
       context: ./backend
@@ -31,14 +32,14 @@ services:
         npm start
       "
     networks:
-      - webapp
+      - proxy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.canvas-backend.rule=Host(`canvas.berguecio.cl`) && PathPrefix(`/api`)"
       - "traefik.http.routers.canvas-backend.entrypoints=websecure"
       - "traefik.http.routers.canvas-backend.tls=true"
       - "traefik.http.services.canvas-backend.loadbalancer.server.port=4000"
-
+      - "traefik.docker.network=proxy"
   postgres:
     image: postgres:16
     restart: unless-stopped
@@ -49,11 +50,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
-      - webapp
+      - proxy
 
 volumes:
   pgdata:
 
 networks:
-  webapp:
+  proxy:
     external: true
