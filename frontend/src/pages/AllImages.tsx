@@ -6,14 +6,16 @@ import {
   addFavorite,
   delFavorite,
   requeueImage,
+  flagImage,
   Image
 } from '../services/ImageService';
 import ImageList from '../components/ImageList';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function AllImages() {
   const [images, setImages] = useState<Image[]>([]);
-  const currentUser = localStorage.getItem('userEmail');
-  const adminEmail = localStorage.getItem('adminEmail') || import.meta.env.VITE_ADMIN_EMAIL as string;
+  const { userEmail } = useAuth();
+  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL as string;
 
   useEffect(() => {
     fetchAllImages().then(setImages).catch(console.error);
@@ -26,6 +28,13 @@ export default function AllImages() {
   const handleUnFav    = (id: number) => delFavorite(id).then(refresh);
   const handleRequeue  = (id: number) => requeueImage(id).then(refresh);
 
+  const handleFlag = async (id: number) => {
+    const reason = prompt('Reason for flagging:');
+    if (reason === null) return;
+    await flagImage(id, reason);
+    refresh();
+  };
+
   return (
     <ImageList
       images={images}
@@ -33,9 +42,10 @@ export default function AllImages() {
       onAddFav={handleFav}
       onRemoveFav={handleUnFav}
       onRequeue={handleRequeue}
+      onFlag={handleFlag}
       showAdminActions
       showcurrent = {true}
-      currentUser={currentUser}
+      currentUser={userEmail}
       adminEmail={adminEmail}
     />
   );

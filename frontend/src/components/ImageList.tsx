@@ -11,6 +11,7 @@ interface Props {
   onAddFav?: (id: number) => Promise<void>;
   onRemoveFav?: (id: number) => Promise<void>;
   onRequeue?: (id: number) => Promise<void>;
+  onFlag?: (id: number) => Promise<void>;
   showcurrent?: boolean;
   showAdminActions?: boolean;
   hideAddFav?: boolean;
@@ -24,6 +25,7 @@ const ImageList: React.FC<Props> = ({
   onAddFav,
   onRemoveFav,
   onRequeue,
+  onFlag,
   showcurrent = false,
   showAdminActions = false,
   hideAddFav = false,
@@ -152,6 +154,7 @@ const ImageList: React.FC<Props> = ({
                     )}
                     {img.isFavorite && <button onClick={() => onRemoveFav?.(img.id)}>✕ Unfav</button>}
                     <button onClick={() => onRequeue?.(img.id)}>⏩ Requeue</button>
+                    {onFlag && <button onClick={() => onFlag(img.id)}>🚩 Flag</button>}
                   </div>
                 )}
               </div>

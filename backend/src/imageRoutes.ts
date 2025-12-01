@@ -220,6 +220,23 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       return;
     }
 
+    // Check if user is banned
+    const bannedUser = await prisma.bannedUser.findUnique({
+      where: { email: payload.email! }
+    });
+
+    if (bannedUser) {
+      res.status(403).json({
+        error: 'Your account has been banned from uploading images',
+        reason: bannedUser.reason
+      });
+      return;
+    }
+
+    // Get upload limit from settings
+    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const uploadLimit = settings?.uploadLimitPerDay || 1;
+
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(startOfDay);
@@ -236,9 +253,9 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       }
     });
 
-    if (uploadsToday >= 1) {
-      res.status(429).json({ error: 'You can only upload one image per day' });
-      return 
+    if (uploadsToday >= uploadLimit) {
+      res.status(429).json({ error: `You can only upload ${uploadLimit} image(s) per day` });
+      return
     }
 
     // Process image

@@ -10,18 +10,32 @@ datasource db {
 model Image {
   id         Int      @id @default(autoincrement())
   key        String
-  bmpKey     String   
+  bmpKey     String
   name       String
   userName   String
   userEmail  String
   isVisible  Boolean  @default(true)
-  isFavorite Boolean  @default(false) 
+  isFavorite Boolean  @default(false)
   createdAt  DateTime @default(now())
   lastQueuedAt DateTime @default(now())
   flagged    String?
 }
 
 model Scheduler {
-  id         Int      @id           
+  id         Int      @id
   nextRunAt  DateTime
+}
+
+model BannedUser {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  bannedAt  DateTime @default(now())
+  reason    String?
+}
+
+model Settings {
+  id                    Int      @id @default(autoincrement())
+  uploadLimitPerDay     Int      @default(1)
+  rotationIntervalHours Int      @default(4)
+  updatedAt             DateTime @updatedAt
 }

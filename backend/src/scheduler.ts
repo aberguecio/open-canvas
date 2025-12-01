@@ -43,10 +43,14 @@ async function rotateAndReschedule() {
       }
     }
 
-    // 3) Calcula intervalo en horas (24h/remaining), entre 1h y 24h
+    // 3) Obtiene configuración dinámica de rotación
+    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const totalCycleHours = settings?.rotationIntervalHours || 100;
+
+    // 4) Calcula intervalo en horas (totalCycleHours/remaining), entre 1h y 24h
     const hours = remaining > 0
-      ? Math.max(1, Math.min(12, 100 / remaining))
-      : 12;
+      ? Math.max(1, Math.min(24, totalCycleHours / remaining))
+      : 24;
     const ms = Math.ceil(hours) * 60 * 60 * 1000;
     console.log(`Next rotation in ${hours.toFixed(2)}h (${ms/1000}s)`);
 

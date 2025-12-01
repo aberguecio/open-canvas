@@ -1,5 +1,5 @@
 // src/pages/Favorites.tsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   fetchFavorites,
   deleteImage,
@@ -8,12 +8,13 @@ import {
   Image
 } from '../services/ImageService';
 import ImageList from '../components/ImageList';
+import { useAuth } from '../contexts/AuthContext';
 
 const adminEmail = import.meta.env.VITE_ADMIN_EMAIL as string;
 
 export default function Favorites() {
   const [images, setImages] = useState<Image[]>([]);
-  const currentUser = localStorage.getItem('userEmail');
+  const { userEmail } = useAuth();
 
   useEffect(() => {
     fetchFavorites().then(setImages).catch(console.error);
@@ -29,7 +30,7 @@ export default function Favorites() {
       onRequeue={id => requeueImage(id).then(refresh)}
       showAdminActions
       hideAddFav
-      currentUser={currentUser}
+      currentUser={userEmail}
       adminEmail={adminEmail}
     />
   );

@@ -171,4 +171,282 @@ router.post('/:id/requeue', mustBeAdmin, async (req: Request, res: Response): Pr
   }
 });
 
+// ========== USER MANAGEMENT ==========
+
+// GET /admin/users -> List all users with stats
+router.get('/users', mustBeAdmin, async (_req: Request, res: Response) => {
+  try {
+    const images = await prisma.image.findMany({
+      select: {
+        userEmail: true,
+        userName: true,
+        createdAt: true,
+        isVisible: true,
+        flagged: true,
+      }
+    });
+
+    const userMap = new Map<string, {
+      email: string;
+      name: string;
+      uploadCount: number;
+      flaggedCount: number;
+      lastUpload: Date;
+      isBanned: boolean;
+    }>();
+
+    for (const img of images) {
+      const existing = userMap.get(img.userEmail);
+      if (existing) {
+        existing.uploadCount++;
+        if (img.flagged) existing.flaggedCount++;
+        if (img.createdAt > existing.lastUpload) {
+          existing.lastUpload = img.createdAt;
+        }
+      } else {
+        userMap.set(img.userEmail, {
+          email: img.userEmail,
+          name: img.userName,
+          uploadCount: 1,
+          flaggedCount: img.flagged ? 1 : 0,
+          lastUpload: img.createdAt,
+          isBanned: false,
+        });
+      }
+    }
+
+    const bannedUsers = await prisma.bannedUser.findMany();
+    const bannedEmails = new Set(bannedUsers.map(u => u.email));
+
+    for (const user of userMap.values()) {
+      if (bannedEmails.has(user.email)) {
+        user.isBanned = true;
+      }
+    }
+
+    const users = Array.from(userMap.values()).sort(
+      (a, b) => b.uploadCount - a.uploadCount
+    );
+
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Error fetching users' });
+  }
+});
+
+// GET /admin/users/:email -> Get specific user details
+router.get('/users/:email', mustBeAdmin, async (req: Request, res: Response) => {
+  try {
+    const email = decodeURIComponent(req.params.email);
+
+    const images = await prisma.image.findMany({
+      where: { userEmail: email },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (images.length === 0) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const signed = await Promise.all(
+      images.map(async (img: Image) => {
+        const cmd = new GetObjectCommand({
+          Bucket: process.env.S3_BUCKET!,
+          Key: img.key
+        });
+        const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+        return {
+          id: img.id,
+          name: img.name,
+          url,
+          createdAt: img.createdAt,
+          isVisible: img.isVisible,
+          isFavorite: img.isFavorite,
+          flagged: img.flagged,
+        };
+      })
+    );
+
+    res.json({
+      email,
+      name: images[0].userName,
+      uploadCount: images.length,
+      images: signed,
+    });
+  } catch (error) {
+    console.error('Error fetching user details:', error);
+    res.status(500).json({ error: 'Error fetching user details' });
+  }
+});
+
+// POST /admin/users/:email/ban -> Ban user
+router.post('/users/:email/ban', mustBeAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const email = decodeURIComponent(req.params.email);
+    const reason = req.body.reason || null;
+
+    const banned = await prisma.bannedUser.create({
+      data: { email, reason }
+    });
+
+    res.json(banned);
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      res.status(400).json({ error: 'User already banned' });
+    } else {
+      console.error('Error banning user:', error);
+      res.status(500).json({ error: 'Error banning user' });
+    }
+  }
+});
+
+// DELETE /admin/users/:email/ban -> Unban user
+router.delete('/users/:email/ban', mustBeAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const email = decodeURIComponent(req.params.email);
+
+    await prisma.bannedUser.delete({
+      where: { email }
+    });
+
+    res.status(204).end();
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      res.status(404).json({ error: 'User not banned' });
+    } else {
+      console.error('Error unbanning user:', error);
+      res.status(500).json({ error: 'Error unbanning user' });
+    }
+  }
+});
+
+// ========== CONTENT MODERATION ==========
+
+// GET /admin/flagged -> Get all flagged images
+router.get('/flagged', mustBeAdmin, async (_req: Request, res: Response) => {
+  try {
+    const flagged = await prisma.image.findMany({
+      where: { flagged: { not: null } },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const signed = await Promise.all(
+      flagged.map(async (img: Image) => {
+        const cmd = new GetObjectCommand({
+          Bucket: process.env.S3_BUCKET!,
+          Key: img.key
+        });
+        const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+        return {
+          id: img.id,
+          name: img.name,
+          url,
+          createdAt: img.createdAt,
+          userName: img.userName,
+          userEmail: img.userEmail,
+          flagged: img.flagged,
+          isVisible: img.isVisible,
+        };
+      })
+    );
+
+    res.json(signed);
+  } catch (error) {
+    console.error('Error fetching flagged images:', error);
+    res.status(500).json({ error: 'Error fetching flagged images' });
+  }
+});
+
+// POST /admin/:id/flag -> Flag image as inappropriate
+router.post('/:id/flag', mustBeAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Invalid ID' });
+      return;
+    }
+
+    const reason = req.body.reason || 'Manually flagged by admin';
+
+    const img = await prisma.image.update({
+      where: { id },
+      data: {
+        flagged: reason,
+        isVisible: false,
+      }
+    });
+
+    res.json(img);
+  } catch (error) {
+    console.error('Error flagging image:', error);
+    res.status(500).json({ error: 'Error flagging image' });
+  }
+});
+
+// DELETE /admin/:id/flag -> Unflag image (approve it)
+router.delete('/:id/flag', mustBeAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Invalid ID' });
+      return;
+    }
+
+    const img = await prisma.image.update({
+      where: { id },
+      data: {
+        flagged: null,
+        isVisible: true,
+      }
+    });
+
+    res.json(img);
+  } catch (error) {
+    console.error('Error unflagging image:', error);
+    res.status(500).json({ error: 'Error unflagging image' });
+  }
+});
+
+// ========== SETTINGS ==========
+
+// GET /admin/settings -> Get current settings
+router.get('/settings', mustBeAdmin, async (_req: Request, res: Response) => {
+  try {
+    let settings = await prisma.settings.findUnique({ where: { id: 1 } });
+
+    if (!settings) {
+      settings = await prisma.settings.create({
+        data: { id: 1, uploadLimitPerDay: 1, rotationIntervalHours: 4 }
+      });
+    }
+
+    res.json(settings);
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    res.status(500).json({ error: 'Error fetching settings' });
+  }
+});
+
+// PUT /admin/settings -> Update settings
+router.put('/settings', mustBeAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { uploadLimitPerDay, rotationIntervalHours } = req.body;
+
+    const settings = await prisma.settings.update({
+      where: { id: 1 },
+      data: {
+        uploadLimitPerDay: uploadLimitPerDay !== undefined ? uploadLimitPerDay : undefined,
+        rotationIntervalHours: rotationIntervalHours !== undefined ? rotationIntervalHours : undefined,
+      }
+    });
+
+    res.json(settings);
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({ error: 'Error updating settings' });
+  }
+});
+
 export default router;

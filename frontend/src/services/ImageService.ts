@@ -9,6 +9,31 @@ export interface Image {
   userName: string;
   isFavorite: boolean;
   userEmail: string;
+  flagged?: string | null;
+  isVisible?: boolean;
+}
+
+export interface User {
+  email: string;
+  name: string;
+  uploadCount: number;
+  flaggedCount: number;
+  lastUpload: string;
+  isBanned: boolean;
+}
+
+export interface UserDetails {
+  email: string;
+  name: string;
+  uploadCount: number;
+  images: Image[];
+}
+
+export interface Settings {
+  id: number;
+  uploadLimitPerDay: number;
+  rotationIntervalHours: number;
+  updatedAt: string;
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
@@ -65,4 +90,51 @@ export async function fetchUserTime(): Promise<number> {
 export async function fetchBmpUrl(id: number): Promise<string> {
   const { data } = await api.get<{ url: string }>(`/api/images/${id}/bmp`);
   return data.url;
+}
+
+// ========== USER MANAGEMENT ==========
+
+export async function fetchUsers(): Promise<User[]> {
+  const res = await api.get<User[]>('/api/admin/users');
+  return res.data;
+}
+
+export async function fetchUserDetails(email: string): Promise<UserDetails> {
+  const res = await api.get<UserDetails>(`/api/admin/users/${encodeURIComponent(email)}`);
+  return res.data;
+}
+
+export async function banUser(email: string, reason?: string): Promise<void> {
+  await api.post(`/api/admin/users/${encodeURIComponent(email)}/ban`, { reason });
+}
+
+export async function unbanUser(email: string): Promise<void> {
+  await api.delete(`/api/admin/users/${encodeURIComponent(email)}/ban`);
+}
+
+// ========== CONTENT MODERATION ==========
+
+export async function fetchFlaggedImages(): Promise<Image[]> {
+  const res = await api.get<Image[]>('/api/admin/flagged');
+  return res.data;
+}
+
+export async function flagImage(id: number, reason?: string): Promise<void> {
+  await api.post(`/api/admin/${id}/flag`, { reason });
+}
+
+export async function unflagImage(id: number): Promise<void> {
+  await api.delete(`/api/admin/${id}/flag`);
+}
+
+// ========== SETTINGS ==========
+
+export async function fetchSettings(): Promise<Settings> {
+  const res = await api.get<Settings>('/api/admin/settings');
+  return res.data;
+}
+
+export async function updateSettings(settings: Partial<Settings>): Promise<Settings> {
+  const res = await api.put<Settings>('/api/admin/settings', settings);
+  return res.data;
 }

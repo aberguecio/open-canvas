@@ -1,33 +1,21 @@
 // src/App.tsx
-import React, { useEffect } from 'react';
-import { Routes, Route, Navigate, Link } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import AllImages from './pages/AllImages';
 import Favorites from './pages/Favorites';
-import { setAuthToken } from './services/ImageService';
-
-const adminEmail = import.meta.env.VITE_ADMIN_EMAIL as string;
+import Users from './pages/Users';
+import FlaggedImages from './pages/FlaggedImages';
+import SettingsPage from './pages/SettingsPage';
+import { useAuth } from './contexts/AuthContext';
+import AdminNav from './components/AdminNav';
 
 export default function App() {
-  // Rehidratar token para todas las peticiones
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) setAuthToken(token);
-  }, []);
-
-  const currentUser = localStorage.getItem('userEmail');
-  const isAdmin     = currentUser === adminEmail;
+  const { isAdmin } = useAuth();
 
   return (
     <div>
       {/* Menú admin, visible en todas las páginas */}
-      {isAdmin && (
-        <nav style={{ padding: '1rem', borderBottom: '1px solid #ccc' }}>
-          <Link to="/" style={{ marginRight: '1rem' }}>Inicio</Link>
-          <Link to="/all-images" style={{ marginRight: '1rem' }}>Todas</Link>
-          <Link to="/favorites">Favoritos</Link>
-        </nav>
-      )}
+      {isAdmin && <AdminNav />}
 
       <Routes>
         <Route path="/" element={<Home />} />
@@ -40,6 +28,21 @@ export default function App() {
         <Route
           path="/favorites"
           element={isAdmin ? <Favorites /> : <Navigate to="/" replace />}
+        />
+
+        <Route
+          path="/users"
+          element={isAdmin ? <Users /> : <Navigate to="/" replace />}
+        />
+
+        <Route
+          path="/flagged"
+          element={isAdmin ? <FlaggedImages /> : <Navigate to="/" replace />}
+        />
+
+        <Route
+          path="/settings"
+          element={isAdmin ? <SettingsPage /> : <Navigate to="/" replace />}
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />
