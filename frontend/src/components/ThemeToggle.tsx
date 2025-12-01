@@ -4,40 +4,25 @@ export default function ThemeToggle() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-      <button
-        onClick={() => setTheme('light')}
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <select
+        value={theme}
+        onChange={(e) => setTheme(e.target.value as 'light' | 'dark' | 'system')}
         style={{
-          padding: '0.4rem 0.8rem',
-          fontSize: '0.9rem',
-          opacity: theme === 'light' ? 1 : 0.5,
+          padding: '0.4rem',
+          borderRadius: '4px',
+          border: '1px solid var(--color-border)',
+          backgroundColor: 'var(--color-button-bg)',
+          color: 'var(--color-text)',
+          cursor: 'pointer',
+          fontSize: '0.9rem'
         }}
-        title="Light mode"
+        title="Select theme"
       >
-        ☀️
-      </button>
-      <button
-        onClick={() => setTheme('system')}
-        style={{
-          padding: '0.4rem 0.8rem',
-          fontSize: '0.9rem',
-          opacity: theme === 'system' ? 1 : 0.5,
-        }}
-        title="System preference"
-      >
-        💻
-      </button>
-      <button
-        onClick={() => setTheme('dark')}
-        style={{
-          padding: '0.4rem 0.8rem',
-          fontSize: '0.9rem',
-          opacity: theme === 'dark' ? 1 : 0.5,
-        }}
-        title="Dark mode"
-      >
-        🌙
-      </button>
+        <option value="light">☀️ Light</option>
+        <option value="dark">🌙 Dark</option>
+        <option value="system">💻 System</option>
+      </select>
     </div>
   );
 }

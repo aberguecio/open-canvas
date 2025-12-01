@@ -14,7 +14,7 @@ app.use(express.json());
 
 app.use(cors({
   origin: process.env.VITE_API_URL,  // o '*' si quieres permitir desde cualquier origen
-  methods: ['GET','POST','DELETE','OPTIONS'],
+  methods: ['GET','POST','DELETE','OPTIONS','PUT','PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));

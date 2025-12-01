@@ -59,91 +59,91 @@ async function convertTo7ColorDitheredBMP(
 
   // 2. 7-color palette
   const PALETTE: [number, number, number][] = [
-    [255,255,255], [0,0,0],
-    [255,0,0],     [255,165,0],
-    [255,255,0],   [0,128,0],
-    [0,0,255]
+    [255, 255, 255], [0, 0, 0],
+    [255, 0, 0], [255, 165, 0],
+    [255, 255, 0], [0, 128, 0],
+    [0, 0, 255]
   ];
 
-  const closestColorIndex = (r:number,g:number,b:number):number => {
-    let best=0, bd=Infinity;
-    for(let i=0;i<PALETTE.length;i++){
-      const [pr,pg,pb]=PALETTE[i];
-      const d=(r-pr)**2+(g-pg)**2+(b-pb)**2;
-      if(d<bd){ bd=d; best=i; }
+  const closestColorIndex = (r: number, g: number, b: number): number => {
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < PALETTE.length; i++) {
+      const [pr, pg, pb] = PALETTE[i];
+      const d = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
+      if (d < bd) { bd = d; best = i; }
     }
     return best;
   };
 
   // 3. Dither + generate indices (0–6)
-  const indexBuf = new Uint8Array(w*h);
-  for(let y=0;y<h;y++){
-    for(let x=0;x<w;x++){
-      const idx=(y*w+x)*3;
-      const oldR=pixels[idx], oldG=pixels[idx+1], oldB=pixels[idx+2];
-      const ci=closestColorIndex(oldR,oldG,oldB);
-      const [nr,ng,nb]=PALETTE[ci];
-      indexBuf[y*w+x]=ci;
-      const eR=oldR-nr, eG=oldG-ng, eB=oldB-nb;
-      [[1,0,7/16],[-1,1,3/16],[0,1,5/16],[1,1,1/16]]
-        .forEach(([dx,dy,f])=>{
-          const nx=x+dx, ny=y+dy;
-          if(nx<0||nx>=w||ny<0||ny>=h) return;
-          const nidx=(ny*w+nx)*3;
-          pixels[nidx  ]=Math.max(0,Math.min(255,pixels[nidx  ]+eR*f));
-          pixels[nidx+1]=Math.max(0,Math.min(255,pixels[nidx+1]+eG*f));
-          pixels[nidx+2]=Math.max(0,Math.min(255,pixels[nidx+2]+eB*f));
+  const indexBuf = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 3;
+      const oldR = pixels[idx], oldG = pixels[idx + 1], oldB = pixels[idx + 2];
+      const ci = closestColorIndex(oldR, oldG, oldB);
+      const [nr, ng, nb] = PALETTE[ci];
+      indexBuf[y * w + x] = ci;
+      const eR = oldR - nr, eG = oldG - ng, eB = oldB - nb;
+      [[1, 0, 7 / 16], [-1, 1, 3 / 16], [0, 1, 5 / 16], [1, 1, 1 / 16]]
+        .forEach(([dx, dy, f]) => {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || nx >= w || ny < 0 || ny >= h) return;
+          const nidx = (ny * w + nx) * 3;
+          pixels[nidx] = Math.max(0, Math.min(255, pixels[nidx] + eR * f));
+          pixels[nidx + 1] = Math.max(0, Math.min(255, pixels[nidx + 1] + eG * f));
+          pixels[nidx + 2] = Math.max(0, Math.min(255, pixels[nidx + 2] + eB * f));
         });
     }
   }
 
   // 4. Build 4 bpp BMP
   const paletteSize = PALETTE.length;           // 7
-  const bytesPerLine = Math.ceil(w/2);          // 2 pix/byte
-  const rowSize     = ((bytesPerLine + 3) >> 2) << 2; // align to 4
-  const pixelBytes  = rowSize * h;
-  const headerSize  = 14 + 40;
-  const paletteBytes= 16 * 4;                   // table of 16 entries
-  const fileSize    = headerSize + paletteBytes + pixelBytes;
+  const bytesPerLine = Math.ceil(w / 2);          // 2 pix/byte
+  const rowSize = ((bytesPerLine + 3) >> 2) << 2; // align to 4
+  const pixelBytes = rowSize * h;
+  const headerSize = 14 + 40;
+  const paletteBytes = 16 * 4;                   // table of 16 entries
+  const fileSize = headerSize + paletteBytes + pixelBytes;
   const bmp = Buffer.alloc(fileSize);
 
   // BITMAPFILEHEADER
   bmp.writeUInt16LE(0x4D42, 0);
-  bmp.writeUInt32LE(fileSize,2);
-  bmp.writeUInt32LE(0,6);
-  bmp.writeUInt32LE(headerSize + paletteBytes,10);
+  bmp.writeUInt32LE(fileSize, 2);
+  bmp.writeUInt32LE(0, 6);
+  bmp.writeUInt32LE(headerSize + paletteBytes, 10);
 
   // BITMAPINFOHEADER
-  bmp.writeUInt32LE(40,14);
-  bmp.writeInt32LE(w,18);
-  bmp.writeInt32LE(h,22);
-  bmp.writeUInt16LE(1,26);
-  bmp.writeUInt16LE(4,28);           // 4 bpp!
-  bmp.writeUInt32LE(0,30);
-  bmp.writeUInt32LE(pixelBytes,34);
-  bmp.writeInt32LE(2835,38);
-  bmp.writeInt32LE(2835,42);
-  bmp.writeUInt32LE(paletteSize,46);
-  bmp.writeUInt32LE(paletteSize,50);
+  bmp.writeUInt32LE(40, 14);
+  bmp.writeInt32LE(w, 18);
+  bmp.writeInt32LE(h, 22);
+  bmp.writeUInt16LE(1, 26);
+  bmp.writeUInt16LE(4, 28);           // 4 bpp!
+  bmp.writeUInt32LE(0, 30);
+  bmp.writeUInt32LE(pixelBytes, 34);
+  bmp.writeInt32LE(2835, 38);
+  bmp.writeInt32LE(2835, 42);
+  bmp.writeUInt32LE(paletteSize, 46);
+  bmp.writeUInt32LE(paletteSize, 50);
 
   // Palette: 16 entries, fill only 7, rest stays zero
-  for(let i=0;i<paletteSize;i++){
-    const [r,g,b]=PALETTE[i];
-    const off=headerSize + i*4;
-    bmp[off]  = b;
-    bmp[off+1]= g;
-    bmp[off+2]= r;
-    bmp[off+3]= 0;
+  for (let i = 0; i < paletteSize; i++) {
+    const [r, g, b] = PALETTE[i];
+    const off = headerSize + i * 4;
+    bmp[off] = b;
+    bmp[off + 1] = g;
+    bmp[off + 2] = r;
+    bmp[off + 3] = 0;
   }
 
   // 5. Pack two indices (4b each) per byte, inverted row
   const pixelDataOffset = headerSize + paletteBytes;
-  for(let y=0;y<h;y++){
+  for (let y = 0; y < h; y++) {
     const srcRow = h - 1 - y;
     let dst = pixelDataOffset + y * rowSize;
-    for(let x=0; x<w; x+=2) {
-      const i1 = indexBuf[srcRow*w + x]   & 0x0F;
-      const i2 = (x+1 < w ? indexBuf[srcRow*w + x+1] : 0) & 0x0F;
+    for (let x = 0; x < w; x += 2) {
+      const i1 = indexBuf[srcRow * w + x] & 0x0F;
+      const i2 = (x + 1 < w ? indexBuf[srcRow * w + x + 1] : 0) & 0x0F;
       bmp[dst++] = (i1 << 4) | i2;
     }
     // padding between dst and (pixelDataOffset+y*rowSize) is already 0
@@ -162,7 +162,7 @@ router.get('/', async (_req: Request, res: Response) => {
     });
 
     const signed = await Promise.all(
-      images.map(async (img:Image) => {
+      images.map(async (img: Image) => {
         const cmd = new GetObjectCommand({
           Bucket: process.env.S3_BUCKET!,
           Key: img.key
@@ -197,7 +197,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       : req.body.token;
     if (!token) {
       res.status(401).json({ error: 'Missing token' });
-      return 
+      return
     }
 
     // Verify Google token
@@ -212,7 +212,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
     } catch (err) {
       console.error('Invalid token:', err);
       res.status(401).json({ error: 'Invalid token' });
-      return 
+      return
     }
 
     if (!req.file) {
@@ -318,7 +318,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
 
       await prisma.image.update({
         where: { id: image.id },
-        data: { 
+        data: {
           isVisible: false,
           flagged: flaggedCategories || 'true',
         }
@@ -490,19 +490,23 @@ router.get('/time', async (req: Request, res: Response) => {
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
 
-    const lastImage = await prisma.image.findFirst({
+    // Get upload limit from settings
+    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const uploadLimit = settings?.uploadLimitPerDay || 1;
+
+    // Count today's uploads by this user
+    const uploadsToday = await prisma.image.count({
       where: {
         userEmail: payload.email,
         createdAt: {
           gte: startOfDay,
           lt: endOfDay
         }
-      },
-      orderBy: { createdAt: 'desc' }
+      }
     });
 
-    if (!lastImage) {
-      // Can upload immediately
+    if (uploadsToday < uploadLimit) {
+      // Can upload more
       res.json({ remainingMs: 0 });
       return;
     }
