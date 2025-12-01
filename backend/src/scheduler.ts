@@ -46,13 +46,14 @@ async function rotateAndReschedule() {
     // 3) Obtiene configuración dinámica de rotación
     const settings = await prisma.settings.findUnique({ where: { id: 1 } });
     const totalCycleHours = settings?.rotationIntervalHours || 100;
+    const defaultDuration = settings?.defaultImageDurationHours || 24;
 
-    // 4) Calcula intervalo en horas (totalCycleHours/remaining), entre 1h y 24h
+    // 4) Calcula intervalo en horas (totalCycleHours/remaining), entre 1h y defaultDuration
     const hours = remaining > 0
-      ? Math.max(1, Math.min(24, totalCycleHours / remaining))
-      : 24;
+      ? Math.max(1, Math.min(defaultDuration, totalCycleHours / remaining))
+      : defaultDuration;
     const ms = Math.ceil(hours) * 60 * 60 * 1000;
-    console.log(`Next rotation in ${hours.toFixed(2)}h (${ms/1000}s)`);
+    console.log(`Next rotation in ${hours.toFixed(2)}h (${ms / 1000}s)`);
 
     // 4) Establece timestamp para el próximo run
     const nextDate = new Date(Date.now() + ms);
@@ -85,7 +86,7 @@ async function initScheduler() {
     nextRunTimestamp = sched.nextRunAt.getTime()
     const delay = sched.nextRunAt.getTime() - Date.now();
     if (delay > 0) {
-      console.log(`Next rotation in ${Math.ceil(delay/1000)}s`);
+      console.log(`Next rotation in ${Math.ceil(delay / 1000)}s`);
       return setTimeout(rotateAndReschedule, delay);
     }
   }

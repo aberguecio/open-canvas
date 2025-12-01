@@ -33,6 +33,7 @@ export interface Settings {
   id: number;
   uploadLimitPerDay: number;
   rotationIntervalHours: number;
+  defaultImageDurationHours: number;
   updatedAt: string;
 }
 
@@ -71,15 +72,15 @@ export async function deleteImage(id: number): Promise<void> {
   await api.delete(`/api/images/${id}`);
 }
 
-export async function fetchAllImages(): Promise<Image[]> { 
+export async function fetchAllImages(): Promise<Image[]> {
   const res = await api.get<Image[]>('/api/admin/all');
   return res.data;
 }
 
-export function fetchFavorites()        { return api.get<Image[]>('/api/admin/favorites').then(r => r.data); }
+export function fetchFavorites() { return api.get<Image[]>('/api/admin/favorites').then(r => r.data); }
 export function addFavorite(id: number) { return api.post(`/api/admin/${id}/favorite`); }
 export function delFavorite(id: number) { return api.delete(`/api/admin/${id}/favorite`); }
-export function requeueImage(id:number) { return api.post(`/api/admin/${id}/requeue`); }
+export function requeueImage(id: number) { return api.post(`/api/admin/${id}/requeue`); }
 
 
 export async function fetchUserTime(): Promise<number> {

@@ -5,6 +5,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [uploadLimit, setUploadLimit] = useState(1);
   const [rotationInterval, setRotationInterval] = useState(4);
+  const [defaultDuration, setDefaultDuration] = useState(24);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ export default function SettingsPage() {
       setSettings(data);
       setUploadLimit(data.uploadLimitPerDay);
       setRotationInterval(data.rotationIntervalHours);
+      setDefaultDuration(data.defaultImageDurationHours || 24);
     } catch (err) {
       console.error('Error loading settings:', err);
     }
@@ -29,6 +31,7 @@ export default function SettingsPage() {
       await updateSettings({
         uploadLimitPerDay: uploadLimit,
         rotationIntervalHours: rotationInterval,
+        defaultImageDurationHours: defaultDuration,
       });
       alert('Settings saved successfully!');
       loadSettings();
@@ -92,7 +95,42 @@ export default function SettingsPage() {
             }}
           />
           <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
-            How often the displayed image rotates (in hours)
+            Total cycle time target (how long to cycle through all images if possible)
+          </p>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            Default Image Duration (Hours)
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="100"
+            value={defaultDuration}
+            onChange={(e) => setDefaultDuration(Number(e.target.value))}
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              fontSize: '1rem',
+              borderRadius: '4px',
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-bg)',
+              color: 'var(--color-text)',
+            }}
+          />
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
+            Maximum time an image can stay visible (fallback when there are few images)
+          </p>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--color-button-bg)', borderRadius: '8px', fontSize: '0.9rem' }}>
+          <strong>Rotation Formula:</strong>
+          <p style={{ margin: '0.5rem 0' }}>
+            Duration = max(1h, min(<strong>Default Duration</strong>, <strong>Rotation Interval</strong> / <strong>Remaining Images</strong>))
+          </p>
+          <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>
+            Images rotate faster when there are many in queue, but never exceed the default duration or go below 1 hour.
           </p>
         </div>
 

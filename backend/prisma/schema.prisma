@@ -26,16 +26,20 @@ model Scheduler {
   nextRunAt  DateTime
 }
 
-model BannedUser {
+model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
-  bannedAt  DateTime @default(now())
-  reason    String?
+  name      String?
+  isBanned  Boolean  @default(false)
+  banReason String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Settings {
-  id                    Int      @id @default(autoincrement())
-  uploadLimitPerDay     Int      @default(1)
-  rotationIntervalHours Int      @default(4)
-  updatedAt             DateTime @updatedAt
+  id                       Int      @id @default(autoincrement())
+  uploadLimitPerDay        Int      @default(1)
+  rotationIntervalHours    Int      @default(4)
+  defaultImageDurationHours Int     @default(24)
+  updatedAt                DateTime @updatedAt
 }

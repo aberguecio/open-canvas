@@ -220,15 +220,21 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       return;
     }
 
-    // Check if user is banned
-    const bannedUser = await prisma.bannedUser.findUnique({
-      where: { email: payload.email! }
+    // Upsert user to ensure they are in the database
+    const user = await prisma.user.upsert({
+      where: { email: payload.email! },
+      update: { name: payload.name },
+      create: {
+        email: payload.email!,
+        name: payload.name
+      }
     });
 
-    if (bannedUser) {
+    // Check if user is banned
+    if (user.isBanned) {
       res.status(403).json({
         error: 'Your account has been banned from uploading images',
-        reason: bannedUser.reason
+        reason: user.banReason
       });
       return;
     }

@@ -30,12 +30,12 @@ function mustBeAdmin(req: Request, res: Response, next: NextFunction): void {
   verifyGoogleToken(token)
     .then((result) => {
       const payload = result || { email: undefined };
-      
+
       if (payload.email !== adminEmail) {
         res.status(403).json({ error: 'Solo admin' });
         return;
       }
-      
+
       next();
     })
     .catch((err) => {
@@ -49,7 +49,7 @@ router.get('/all', mustBeAdmin, async (_req: Request, res: Response) => {
   try {
     const images = await prisma.image.findMany({ orderBy: { lastQueuedAt: 'desc' } });
     const signed = await Promise.all(
-      images.map(async (img:Image) => {
+      images.map(async (img: Image) => {
         const cmd = new GetObjectCommand({
           Bucket: process.env.S3_BUCKET!,
           Key: img.key
@@ -83,7 +83,7 @@ router.get('/favorites', mustBeAdmin, async (_req: Request, res: Response) => {
       orderBy: { lastQueuedAt: 'desc' }
     });
     const signed = await Promise.all(
-      favs.map(async (img:Image) => {
+      favs.map(async (img: Image) => {
         const cmd = new GetObjectCommand({
           Bucket: process.env.S3_BUCKET!,
           Key: img.key
@@ -215,12 +215,23 @@ router.get('/users', mustBeAdmin, async (_req: Request, res: Response) => {
       }
     }
 
-    const bannedUsers = await prisma.bannedUser.findMany();
-    const bannedEmails = new Set(bannedUsers.map(u => u.email));
+    // Fetch all users from User table to check ban status and include users with no images if any
+    const dbUsers = await prisma.user.findMany();
 
-    for (const user of userMap.values()) {
-      if (bannedEmails.has(user.email)) {
-        user.isBanned = true;
+    for (const dbUser of dbUsers) {
+      const existing = userMap.get(dbUser.email);
+      if (existing) {
+        existing.isBanned = dbUser.isBanned;
+      } else {
+        // User exists in DB but has no images (or images were deleted?)
+        userMap.set(dbUser.email, {
+          email: dbUser.email,
+          name: dbUser.name || 'Unknown',
+          uploadCount: 0,
+          flaggedCount: 0,
+          lastUpload: dbUser.createdAt, // fallback
+          isBanned: dbUser.isBanned,
+        });
       }
     }
 
@@ -287,18 +298,16 @@ router.post('/users/:email/ban', mustBeAdmin, async (req: Request, res: Response
     const email = decodeURIComponent(req.params.email);
     const reason = req.body.reason || null;
 
-    const banned = await prisma.bannedUser.create({
-      data: { email, reason }
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: { isBanned: true, banReason: reason },
+      create: { email, isBanned: true, banReason: reason }
     });
 
-    res.json(banned);
-  } catch (error: any) {
-    if (error.code === 'P2002') {
-      res.status(400).json({ error: 'User already banned' });
-    } else {
-      console.error('Error banning user:', error);
-      res.status(500).json({ error: 'Error banning user' });
-    }
+    res.json(user);
+  } catch (error) {
+    console.error('Error banning user:', error);
+    res.status(500).json({ error: 'Error banning user' });
   }
 });
 
@@ -307,14 +316,15 @@ router.delete('/users/:email/ban', mustBeAdmin, async (req: Request, res: Respon
   try {
     const email = decodeURIComponent(req.params.email);
 
-    await prisma.bannedUser.delete({
-      where: { email }
+    await prisma.user.update({
+      where: { email },
+      data: { isBanned: false, banReason: null }
     });
 
     res.status(204).end();
   } catch (error: any) {
     if (error.code === 'P2025') {
-      res.status(404).json({ error: 'User not banned' });
+      res.status(404).json({ error: 'User not found' });
     } else {
       console.error('Error unbanning user:', error);
       res.status(500).json({ error: 'Error unbanning user' });
@@ -418,7 +428,7 @@ router.get('/settings', mustBeAdmin, async (_req: Request, res: Response) => {
 
     if (!settings) {
       settings = await prisma.settings.create({
-        data: { id: 1, uploadLimitPerDay: 1, rotationIntervalHours: 4 }
+        data: { id: 1, uploadLimitPerDay: 1, rotationIntervalHours: 4, defaultImageDurationHours: 24 }
       });
     }
 
@@ -432,13 +442,14 @@ router.get('/settings', mustBeAdmin, async (_req: Request, res: Response) => {
 // PUT /admin/settings -> Update settings
 router.put('/settings', mustBeAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { uploadLimitPerDay, rotationIntervalHours } = req.body;
+    const { uploadLimitPerDay, rotationIntervalHours, defaultImageDurationHours } = req.body;
 
     const settings = await prisma.settings.update({
       where: { id: 1 },
       data: {
         uploadLimitPerDay: uploadLimitPerDay !== undefined ? uploadLimitPerDay : undefined,
         rotationIntervalHours: rotationIntervalHours !== undefined ? rotationIntervalHours : undefined,
+        defaultImageDurationHours: defaultImageDurationHours !== undefined ? defaultImageDurationHours : undefined,
       }
     });
 
