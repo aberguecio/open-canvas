@@ -329,6 +329,21 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
           flagged: flaggedCategories || 'true',
         }
       });
+
+      // Check if auto-ban is enabled
+      const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+      if (settings?.autoBanEnabled) {
+        // Auto-ban the user
+        await prisma.user.update({
+          where: { email: payload.email! },
+          data: {
+            isBanned: true,
+            banReason: `Auto-banned: uploaded flagged content (${flaggedCategories || 'inappropriate content'})`
+          }
+        });
+        console.log('User auto-banned:', payload.email, 'Reason:', flaggedCategories);
+      }
+
       res.status(422).json({ error: 'Image not allowed', categories: flaggedCategories });
       return;
     }

@@ -41,5 +41,6 @@ model Settings {
   uploadLimitPerDay        Int      @default(1)
   rotationIntervalHours    Int      @default(4)
   defaultImageDurationHours Int     @default(24)
+  autoBanEnabled           Boolean  @default(false)
   updatedAt                DateTime @updatedAt
 }

@@ -428,7 +428,7 @@ router.get('/settings', mustBeAdmin, async (_req: Request, res: Response) => {
 
     if (!settings) {
       settings = await prisma.settings.create({
-        data: { id: 1, uploadLimitPerDay: 1, rotationIntervalHours: 4, defaultImageDurationHours: 24 }
+        data: { id: 1, uploadLimitPerDay: 1, rotationIntervalHours: 4, defaultImageDurationHours: 24, autoBanEnabled: false }
       });
     }
 
@@ -442,7 +442,7 @@ router.get('/settings', mustBeAdmin, async (_req: Request, res: Response) => {
 // PUT /admin/settings -> Update settings
 router.put('/settings', mustBeAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { uploadLimitPerDay, rotationIntervalHours, defaultImageDurationHours } = req.body;
+    const { uploadLimitPerDay, rotationIntervalHours, defaultImageDurationHours, autoBanEnabled } = req.body;
 
     const settings = await prisma.settings.update({
       where: { id: 1 },
@@ -450,6 +450,7 @@ router.put('/settings', mustBeAdmin, async (req: Request, res: Response): Promis
         uploadLimitPerDay: uploadLimitPerDay !== undefined ? uploadLimitPerDay : undefined,
         rotationIntervalHours: rotationIntervalHours !== undefined ? rotationIntervalHours : undefined,
         defaultImageDurationHours: defaultImageDurationHours !== undefined ? defaultImageDurationHours : undefined,
+        autoBanEnabled: autoBanEnabled !== undefined ? autoBanEnabled : undefined,
       }
     });
 

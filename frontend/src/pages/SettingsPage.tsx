@@ -6,6 +6,7 @@ export default function SettingsPage() {
   const [uploadLimit, setUploadLimit] = useState(1);
   const [rotationInterval, setRotationInterval] = useState(4);
   const [defaultDuration, setDefaultDuration] = useState(24);
+  const [autoBanEnabled, setAutoBanEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -19,6 +20,7 @@ export default function SettingsPage() {
       setUploadLimit(data.uploadLimitPerDay);
       setRotationInterval(data.rotationIntervalHours);
       setDefaultDuration(data.defaultImageDurationHours || 24);
+      setAutoBanEnabled(data.autoBanEnabled || false);
     } catch (err) {
       console.error('Error loading settings:', err);
     }
@@ -32,6 +34,7 @@ export default function SettingsPage() {
         uploadLimitPerDay: uploadLimit,
         rotationIntervalHours: rotationInterval,
         defaultImageDurationHours: defaultDuration,
+        autoBanEnabled: autoBanEnabled,
       });
       alert('Settings saved successfully!');
       loadSettings();
@@ -131,6 +134,21 @@ export default function SettingsPage() {
           </p>
           <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>
             Images rotate faster when there are many in queue, but never exceed the default duration or go below 1 hour.
+          </p>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={autoBanEnabled}
+              onChange={(e) => setAutoBanEnabled(e.target.checked)}
+              style={{ cursor: 'pointer' }}
+            />
+            <span style={{ fontWeight: 'bold' }}>Enable Auto-Ban</span>
+          </label>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: '0.25rem', marginLeft: '1.5rem' }}>
+            Automatically ban users when their uploaded images are flagged by moderation
           </p>
         </div>
 

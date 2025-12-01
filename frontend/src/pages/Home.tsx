@@ -8,6 +8,7 @@ import {
   fetchImages,
   uploadImage,
   deleteImage,
+  checkUserStatus,
   Image
 } from '../services/ImageService';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +22,7 @@ interface GooglePayload {
 
 export default function Home() {
   const [images, setImages] = useState<Image[]>([]);
+  const [banError, setBanError] = useState<string | null>(null);
   const { token, userEmail, login, logout } = useAuth();
 
   useEffect(() => {
@@ -28,14 +30,58 @@ export default function Home() {
     fetchImages().then(setImages).catch(console.error);
   }, []);
 
-  const handleLogin = (res: CredentialResponse) => {
+  // Poll for ban status every 30 seconds if user is logged in
+  useEffect(() => {
+    if (!token) return;
+
+    const checkBanStatus = async () => {
+      try {
+        const status = await checkUserStatus();
+        if (status.isBanned) {
+          logout();
+          setBanError(status.banReason || 'You have been banned from this service');
+        }
+      } catch (error) {
+        console.error('Error checking ban status:', error);
+      }
+    };
+
+    // Check immediately on login
+    checkBanStatus();
+
+    // Then check every 30 seconds
+    const interval = setInterval(checkBanStatus, 30000);
+
+    return () => clearInterval(interval);
+  }, [token, logout]);
+
+  const handleLogin = async (res: CredentialResponse) => {
     if (!res.credential) return;
     const jwt = res.credential;
     const payload = jwtDecode<GooglePayload>(jwt);
+
+    // Clear any previous ban error
+    setBanError(null);
+
+    // Attempt login
     login(jwt, payload.email);
+
+    // Check if user is banned immediately after login
+    try {
+      const status = await checkUserStatus();
+      if (status.isBanned) {
+        logout();
+        setBanError(status.banReason || 'You are banned from this service');
+      }
+    } catch (error) {
+      // If check fails, the token might be invalid (user is banned)
+      logout();
+      setBanError('You are banned from this service');
+    }
   };
 
   const handleLogout = () => {
+    setBanError(null);
     logout();
   };
 
@@ -59,11 +105,26 @@ export default function Home() {
             {!token ? (
               <GoogleLogin onSuccess={handleLogin} onError={() => console.log('Login Failed')} theme="filled_black" />
             ) : (
-              <button style={{minWidth: '200px'}} onClick={handleLogout}>Cerrar sesión</button>
+              <button style={{ minWidth: '200px' }} onClick={handleLogout}>Cerrar sesión</button>
             )}
           </div>
         </div>
       </header>
+
+      {banError && (
+        <div style={{
+          padding: '1rem',
+          margin: '1rem 0',
+          backgroundColor: '#fee',
+          border: '2px solid #c00',
+          borderRadius: '8px',
+          color: '#c00',
+          fontWeight: 'bold',
+          textAlign: 'center'
+        }}>
+          🚫 {banError}
+        </div>
+      )}
 
       {token && <ImageForm onAddImage={handleAddImage} />}
 
@@ -72,7 +133,7 @@ export default function Home() {
         onDeleteImage={handleDeleteImage}
         currentUser={userEmail}
         adminEmail={adminEmail}
-        showcurrent = {true}
+        showcurrent={true}
       />
     </div>
   );

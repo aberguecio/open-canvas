@@ -34,6 +34,7 @@ export interface Settings {
   uploadLimitPerDay: number;
   rotationIntervalHours: number;
   defaultImageDurationHours: number;
+  autoBanEnabled: boolean;
   updatedAt: string;
 }
 
@@ -137,5 +138,12 @@ export async function fetchSettings(): Promise<Settings> {
 
 export async function updateSettings(settings: Partial<Settings>): Promise<Settings> {
   const res = await api.put<Settings>('/api/admin/settings', settings);
+  return res.data;
+}
+
+// ========== USER STATUS ==========
+
+export async function checkUserStatus(): Promise<{ isBanned: boolean; banReason: string | null }> {
+  const res = await api.get<{ isBanned: boolean; banReason: string | null }>('/api/user/status');
   return res.data;
 }
