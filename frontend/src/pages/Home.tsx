@@ -26,34 +26,8 @@ export default function Home() {
   const { token, userEmail, login, logout } = useAuth();
 
   useEffect(() => {
-    // Carga inicial de imágenes
     fetchImages().then(setImages).catch(console.error);
   }, []);
-
-  // Poll for ban status every 30 seconds if user is logged in
-  useEffect(() => {
-    if (!token) return;
-
-    const checkBanStatus = async () => {
-      try {
-        const status = await checkUserStatus();
-        if (status.isBanned) {
-          logout();
-          setBanError(status.banReason || 'You have been banned from this service');
-        }
-      } catch (error) {
-        console.error('Error checking ban status:', error);
-      }
-    };
-
-    // Check immediately on login
-    checkBanStatus();
-
-    // Then check every 30 seconds
-    const interval = setInterval(checkBanStatus, 30000);
-
-    return () => clearInterval(interval);
-  }, [token, logout]);
 
   const handleLogin = async (res: CredentialResponse) => {
     if (!res.credential) return;
@@ -68,14 +42,9 @@ export default function Home() {
 
     // Check if user is banned immediately after login
     try {
-      const status = await checkUserStatus();
-      if (status.isBanned) {
-        logout();
-        setBanError(status.banReason || 'You are banned from this service');
-      }
+      await checkUserStatus();
     } catch (error) {
       // If check fails, the token might be invalid (user is banned)
-      logout();
       setBanError('You are banned from this service');
     }
   };

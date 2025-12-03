@@ -44,8 +44,30 @@ export const api = axios.create({
   baseURL: API_BASE,
 });
 
+// Callback para manejar token expirado
+let onTokenExpired: (() => void) | null = null;
+
+export function setOnTokenExpired(callback: () => void) {
+  onTokenExpired = callback;
+}
+
+// Interceptor para manejar 401 (token expirado)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && onTokenExpired) {
+      onTokenExpired();
+    }
+    return Promise.reject(error);
+  }
+);
+
 export function setAuthToken(token: string) {
   api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+}
+
+export function clearAuthToken() {
+  delete api.defaults.headers.common['Authorization'];
 }
 
 export async function fetchImages(): Promise<Image[]> {

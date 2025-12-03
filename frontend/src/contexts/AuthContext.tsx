@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { setAuthToken } from '../services/ImageService';
+import { setAuthToken, clearAuthToken, setOnTokenExpired } from '../services/ImageService';
 
 interface AuthContextType {
   token: string | null;
@@ -16,6 +16,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
+  const logout = () => {
+    setToken(null);
+    setUserEmail(null);
+    clearAuthToken();
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('tokenExpiresAt');
+  };
+
+  // Configure token expiration handler
+  useEffect(() => {
+    setOnTokenExpired(() => {
+      console.log('Token expired - logging out');
+      logout();
+    });
+  }, []);
+
   // Initialize from localStorage on mount
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
@@ -30,9 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthToken(storedToken);
       } else {
         // Token expired - clear storage
-        localStorage.removeItem('token');
-        localStorage.removeItem('userEmail');
-        localStorage.removeItem('tokenExpiresAt');
+        logout();
       }
     }
   }, []);
@@ -47,15 +62,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('token', newToken);
     localStorage.setItem('userEmail', email);
     localStorage.setItem('tokenExpiresAt', expiresAt.toString());
-  };
-
-  const logout = () => {
-    setToken(null);
-    setUserEmail(null);
-    setAuthToken('');
-    localStorage.removeItem('token');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('tokenExpiresAt');
   };
 
   const isAdmin = userEmail === adminEmail;
