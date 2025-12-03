@@ -98,14 +98,14 @@ export default function Home() {
   return (
     <div className="general-body">
       <header>
-        <h1>Open-Canvas</h1>
+        <h1>Canvas.Berguecio</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <ThemeToggle />
-          <div style={{ display: 'flex', alignItems: 'center', minWidth: '180px', colorScheme: "light" }}>
+          <div style={{ display: 'flex', alignItems: 'center', minWidth: '150px', colorScheme: "light" }}>
             {!token ? (
               <GoogleLogin onSuccess={handleLogin} onError={() => console.log('Login Failed')} theme="filled_black" />
             ) : (
-              <button style={{ minWidth: '200px' }} onClick={handleLogout}>Cerrar sesión</button>
+              <button style={{ minWidth: '150px', height: '33px' }} onClick={handleLogout}>Cerrar sesión</button>
             )}
           </div>
         </div>

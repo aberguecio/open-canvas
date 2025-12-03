@@ -133,13 +133,13 @@ export default function ImageForm({ onAddImage }: Props) {
 
   return (
     <>
-      <div style={{ margin: '2% 15%', textAlign: 'right' }}>
+      <div className="upload-button-container">
         {remainingMs > 0 ? (
           <button style={{ width: '100%', background: '#444', color: '#fff' }} disabled>
             Espera {timer} para volver a subir
           </button>
         ) : (
-          <button style={{ width: '100%' }} onClick={openModal}>Subir Imagen</button>
+          <button className="upload-button" style={{ width: '100%' }} onClick={openModal}>Subir Imagen</button>
         )}
       </div>
 

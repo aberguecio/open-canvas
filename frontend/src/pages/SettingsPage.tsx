@@ -84,7 +84,7 @@ export default function SettingsPage() {
           <input
             type="number"
             min="1"
-            max="100"
+            max="1000"
             value={rotationInterval}
             onChange={(e) => setRotationInterval(Number(e.target.value))}
             style={{

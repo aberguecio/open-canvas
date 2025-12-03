@@ -6,8 +6,49 @@
   background-color: var(--color-button-bg, #f9f9f9);
   border-bottom: 2px solid var(--color-border, #ccc);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
 }
 
+.logo {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-link, #646cff);
+}
+
+/* Hamburger menu button - hidden on desktop */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  z-index: 100;
+}
+
+.hamburger .bar {
+  width: 25px;
+  height: 3px;
+  background-color: var(--color-text);
+  margin: 3px 0;
+  transition: all 0.3s ease;
+  border-radius: 3px;
+}
+
+/* Hamburger animation when open */
+.hamburger .bar.open:nth-child(1) {
+  transform: rotate(45deg) translate(5px, 5px);
+}
+
+.hamburger .bar.open:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger .bar.open:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -6px);
+}
+
+/* Desktop nav links */
 .navLinks {
   display: flex;
   gap: 1.5rem;
@@ -33,27 +74,53 @@
   color: white;
 }
 
-.logo {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--color-link, #646cff);
-}
-
+/* Mobile styles */
 @media (max-width: 768px) {
   .navbar {
     padding: 0.75rem 1rem;
-    flex-direction: column;
-    gap: 1rem;
   }
 
+  /* Show hamburger on mobile */
+  .hamburger {
+    display: flex;
+  }
+
+  /* Hide nav links by default on mobile */
   .navLinks {
-    width: 100%;
-    justify-content: center;
-    gap: 1rem;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    background-color: var(--color-button-bg);
+    border-bottom: 2px solid var(--color-border);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    gap: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    z-index: 99;
+  }
+
+  /* Show nav links when menu is open */
+  .navLinks.open {
+    max-height: 500px;
   }
 
   .navLink {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.9rem;
+    width: 100%;
+    padding: 1rem;
+    border-radius: 0;
+    border-bottom: 1px solid var(--color-border);
+    text-align: center;
+  }
+
+  .navLink:hover {
+    background-color: var(--color-border);
+  }
+
+  .navLink.active {
+    background-color: var(--color-link);
+    color: white;
   }
 }

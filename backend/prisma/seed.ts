@@ -8,7 +8,9 @@ async function main() {
     create: {
       id: 1,
       uploadLimitPerDay: 1,
-      rotationIntervalHours: 4,
+      rotationIntervalHours: 100,
+      defaultImageDurationHours: 24,
+      autoBanEnabled: false,
     },
   });
   console.log('✅ Settings seeded successfully');

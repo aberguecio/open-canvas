@@ -4,13 +4,13 @@
   font-weight: 400;
 
   /* Light theme variables (default) */
-  --color-bg: #ffffff;
-  --color-text: #213547;
+  --color-bg: #ebe7dd;
+  --color-text: #162635;
   --color-text-muted: #777;
-  --color-border: #ccc;
+  --color-border: #d4c5b0;
   --color-link: #747bff;
   --color-link-hover: #535bf2;
-  --color-button-bg: #f9f9f9;
+  --color-button-bg: #e5dcc8;
   --color-button-border: #646cff;
 
   font-synthesis: none;
@@ -60,15 +60,15 @@ h1 {
 button {
   border-radius: 8px;
   border: 1px solid transparent;
-  padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
   background-color: var(--color-button-bg);
   color: var(--color-text);
   cursor: pointer;
-  transition: border-color 0.25s;
-  max-height: 50px;
+  transition: all 0.25s ease;
+  min-height: 30px;
+  height: 40px;
 }
 button:hover {
   border-color: var(--color-button-border);
@@ -76,4 +76,76 @@ button:hover {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* Botón principal de subir imagen */
+.upload-button {
+  position: relative;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background-size: 200% 200%;
+  color: white;
+  font-weight: 700;
+  font-size: 1.15em;
+  border: none;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4),
+              0 0 0 0 rgba(118, 75, 162, 0.5),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  overflow: hidden;
+  animation: gradientShift 3s ease infinite;
+  letter-spacing: 0.5px;
+  height: 50px;
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.upload-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.upload-button:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6),
+              0 0 30px rgba(118, 75, 162, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+
+  letter-spacing: 6px;
+  font-weight: 1000;
+
+}
+
+
+.upload-button:active {
+  transform: translateY(-1px) scale(0.98);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.upload-button > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Contenedor del botón de subir imagen */
+.upload-button-container {
+  margin: 2% 15%;
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .upload-button-container {
+    margin: 2% 5%;
+  }
 }
