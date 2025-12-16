@@ -96,11 +96,11 @@ async function convertTo7ColorDitheredBMP(
   const PALETTE: [number, number, number][] = [
     [255, 255, 255],      // blanco (white)
     [49, 40, 66],         // negro (black)
-    [189, 70, 80],        // rojo (red)
-    [225, 138, 110],      // naranjo (orange)
-    [251, 230, 127],      // amarillo (yellow)
-    [106, 132, 119],      // verde (green)
-    [93, 101, 166]        // azul (blue)
+    [190, 90, 70],        // rojo (red)rgb(190, 90, 70)
+    [224, 120, 55],      // naranjo (orange) rgb(224, 120, 55)
+    [255, 247, 76],      // amarillo (yellow)rgb(255, 247, 76)
+    [62, 128, 77],      // verde (green)rgb(62, 128, 77)
+    [72, 78, 140]        // azul (blue)rgb(72, 78, 140)
   ];
 
   const closestColorIndex = (r: number, g: number, b: number): number => {
