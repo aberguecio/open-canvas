@@ -35,6 +35,14 @@ export interface Settings {
   rotationIntervalHours: number;
   defaultImageDurationHours: number;
   autoBanEnabled: boolean;
+
+  // Image processing settings
+  ditheringEnabled: boolean;
+  sharpenSigma: number;
+  saturationMultiplier: number;
+  contrastMultiplier: number;
+  gamma: number;
+
   updatedAt: string;
 }
 

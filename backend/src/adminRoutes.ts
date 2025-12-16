@@ -428,7 +428,19 @@ router.get('/settings', mustBeAdmin, async (_req: Request, res: Response) => {
 
     if (!settings) {
       settings = await prisma.settings.create({
-        data: { id: 1, uploadLimitPerDay: 1, rotationIntervalHours: 4, defaultImageDurationHours: 24, autoBanEnabled: false }
+        data: {
+          id: 1,
+          uploadLimitPerDay: 1,
+          rotationIntervalHours: 4,
+          defaultImageDurationHours: 24,
+          autoBanEnabled: false,
+          // Image processing defaults
+          ditheringEnabled: true,
+          sharpenSigma: 1.0,
+          saturationMultiplier: 1.15,
+          contrastMultiplier: 1.2,
+          gamma: 2.2
+        }
       });
     }
 
@@ -442,7 +454,18 @@ router.get('/settings', mustBeAdmin, async (_req: Request, res: Response) => {
 // PUT /admin/settings -> Update settings
 router.put('/settings', mustBeAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { uploadLimitPerDay, rotationIntervalHours, defaultImageDurationHours, autoBanEnabled } = req.body;
+    const {
+      uploadLimitPerDay,
+      rotationIntervalHours,
+      defaultImageDurationHours,
+      autoBanEnabled,
+      // Image processing settings
+      ditheringEnabled,
+      sharpenSigma,
+      saturationMultiplier,
+      contrastMultiplier,
+      gamma
+    } = req.body;
 
     const settings = await prisma.settings.update({
       where: { id: 1 },
@@ -451,6 +474,12 @@ router.put('/settings', mustBeAdmin, async (req: Request, res: Response): Promis
         rotationIntervalHours: rotationIntervalHours !== undefined ? rotationIntervalHours : undefined,
         defaultImageDurationHours: defaultImageDurationHours !== undefined ? defaultImageDurationHours : undefined,
         autoBanEnabled: autoBanEnabled !== undefined ? autoBanEnabled : undefined,
+        // Image processing settings
+        ditheringEnabled: ditheringEnabled !== undefined ? ditheringEnabled : undefined,
+        sharpenSigma: sharpenSigma !== undefined ? sharpenSigma : undefined,
+        saturationMultiplier: saturationMultiplier !== undefined ? saturationMultiplier : undefined,
+        contrastMultiplier: contrastMultiplier !== undefined ? contrastMultiplier : undefined,
+        gamma: gamma !== undefined ? gamma : undefined,
       }
     });
 

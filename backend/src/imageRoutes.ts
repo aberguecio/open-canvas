@@ -40,16 +40,51 @@ async function moderateImageUrl(imageUrl: string): Promise<any> {
   return moderation.results?.[0];
 }
 
+interface ImageProcessingSettings {
+  ditheringEnabled: boolean;
+  sharpenSigma: number;
+  saturationMultiplier: number;
+  contrastMultiplier: number;
+  gamma: number;
+}
+
 async function convertTo7ColorDitheredBMP(
   inputBuffer: Buffer,
+  settings: ImageProcessingSettings,
   width = 800,
   height = 480
 ): Promise<Buffer> {
 
-  // 1. Resize and get RAW RGB
-  const { data, info } = await sharp(inputBuffer)
+  // 1. Resize with pre-processing: sharpen, contrast, saturation
+  let sharpInstance = sharp(inputBuffer)
     .resize(width, height, { fit: 'cover' })
-    .removeAlpha()
+    .removeAlpha();
+
+  // Apply sharpening if sigma > 0
+  if (settings.sharpenSigma > 0) {
+    sharpInstance = sharpInstance.sharpen({ sigma: settings.sharpenSigma });
+  }
+
+  // Apply saturation if different from 1.0
+  if (settings.saturationMultiplier !== 1.0) {
+    sharpInstance = sharpInstance.modulate({
+      saturation: settings.saturationMultiplier,
+      brightness: 1.0
+    });
+  }
+
+  // Apply contrast if different from 1.0
+  if (settings.contrastMultiplier !== 1.0) {
+    const offset = -(128 * (settings.contrastMultiplier - 1));
+    sharpInstance = sharpInstance.linear(settings.contrastMultiplier, offset);
+  }
+
+  // Apply gamma correction
+  if (settings.gamma !== 1.0) {
+    sharpInstance = sharpInstance.gamma(settings.gamma);
+  }
+
+  const { data, info } = await sharpInstance
     .raw()
     .toBuffer({ resolveWithObject: true });
 
@@ -57,12 +92,15 @@ async function convertTo7ColorDitheredBMP(
   const h = info.height;
   const pixels = new Uint8ClampedArray(data);
 
-  // 2. 7-color palette
+  // 2. 7-color palette (real e-ink colors)
   const PALETTE: [number, number, number][] = [
-    [255, 255, 255], [0, 0, 0],
-    [255, 0, 0], [255, 165, 0],
-    [255, 255, 0], [0, 128, 0],
-    [0, 0, 255]
+    [255, 255, 255],      // blanco (white)
+    [49, 40, 66],         // negro (black)
+    [189, 70, 80],        // rojo (red)
+    [225, 138, 110],      // naranjo (orange)
+    [251, 230, 127],      // amarillo (yellow)
+    [106, 132, 119],      // verde (green)
+    [93, 101, 166]        // azul (blue)
   ];
 
   const closestColorIndex = (r: number, g: number, b: number): number => {
@@ -75,25 +113,38 @@ async function convertTo7ColorDitheredBMP(
     return best;
   };
 
-  // 3. Dither + generate indices (0–6)
+  // 3. Generate indices (0–6) with optional dithering
   const indexBuf = new Uint8Array(w * h);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = (y * w + x) * 3;
-      const oldR = pixels[idx], oldG = pixels[idx + 1], oldB = pixels[idx + 2];
-      const ci = closestColorIndex(oldR, oldG, oldB);
-      const [nr, ng, nb] = PALETTE[ci];
-      indexBuf[y * w + x] = ci;
-      const eR = oldR - nr, eG = oldG - ng, eB = oldB - nb;
-      [[1, 0, 7 / 16], [-1, 1, 3 / 16], [0, 1, 5 / 16], [1, 1, 1 / 16]]
-        .forEach(([dx, dy, f]) => {
-          const nx = x + dx, ny = y + dy;
-          if (nx < 0 || nx >= w || ny < 0 || ny >= h) return;
-          const nidx = (ny * w + nx) * 3;
-          pixels[nidx] = Math.max(0, Math.min(255, pixels[nidx] + eR * f));
-          pixels[nidx + 1] = Math.max(0, Math.min(255, pixels[nidx + 1] + eG * f));
-          pixels[nidx + 2] = Math.max(0, Math.min(255, pixels[nidx + 2] + eB * f));
-        });
+
+  if (settings.ditheringEnabled) {
+    // Floyd-Steinberg dithering
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = (y * w + x) * 3;
+        const oldR = pixels[idx], oldG = pixels[idx + 1], oldB = pixels[idx + 2];
+        const ci = closestColorIndex(oldR, oldG, oldB);
+        const [nr, ng, nb] = PALETTE[ci];
+        indexBuf[y * w + x] = ci;
+        const eR = oldR - nr, eG = oldG - ng, eB = oldB - nb;
+        [[1, 0, 7 / 16], [-1, 1, 3 / 16], [0, 1, 5 / 16], [1, 1, 1 / 16]]
+          .forEach(([dx, dy, f]) => {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx >= w || ny < 0 || ny >= h) return;
+            const nidx = (ny * w + nx) * 3;
+            pixels[nidx] = Math.max(0, Math.min(255, pixels[nidx] + eR * f));
+            pixels[nidx + 1] = Math.max(0, Math.min(255, pixels[nidx + 1] + eG * f));
+            pixels[nidx + 2] = Math.max(0, Math.min(255, pixels[nidx + 2] + eB * f));
+          });
+      }
+    }
+  } else {
+    // No dithering - simple nearest color
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = (y * w + x) * 3;
+        const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2];
+        indexBuf[y * w + x] = closestColorIndex(r, g, b);
+      }
     }
   }
 
@@ -239,30 +290,46 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       return;
     }
 
-    // Get upload limit from settings
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
-    const uploadLimit = settings?.uploadLimitPerDay || 1;
+    // Check if user is admin
+    const isAdmin = payload.email === process.env.ADMIN_EMAIL;
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setDate(endOfDay.getDate() + 1);
+    // Only check upload limit for non-admin users
+    if (!isAdmin) {
+      // Get upload limit from settings
+      const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+      const uploadLimit = settings?.uploadLimitPerDay || 1;
 
-    // Count today's uploads by this user
-    const uploadsToday = await prisma.image.count({
-      where: {
-        userEmail: payload.email!,
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setDate(endOfDay.getDate() + 1);
+
+      // Count today's uploads by this user
+      const uploadsToday = await prisma.image.count({
+        where: {
+          userEmail: payload.email!,
+          createdAt: {
+            gte: startOfDay,
+            lte: endOfDay
+          }
         }
-      }
-    });
+      });
 
-    if (uploadsToday >= uploadLimit) {
-      res.status(429).json({ error: `You can only upload ${uploadLimit} image(s) per day` });
-      return
+      if (uploadsToday >= uploadLimit) {
+        res.status(429).json({ error: `You can only upload ${uploadLimit} image(s) per day` });
+        return
+      }
     }
+
+    // Get image processing settings from database
+    const dbSettings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const imageSettings: ImageProcessingSettings = {
+      ditheringEnabled: dbSettings?.ditheringEnabled ?? true,
+      sharpenSigma: dbSettings?.sharpenSigma ?? 1.0,
+      saturationMultiplier: dbSettings?.saturationMultiplier ?? 1.15,
+      contrastMultiplier: dbSettings?.contrastMultiplier ?? 1.2,
+      gamma: dbSettings?.gamma ?? 2.2
+    };
 
     // Process image
     const processed = await sharp(req.file.buffer)
@@ -270,7 +337,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       .toFormat('webp')
       .toBuffer();
 
-    const bmpBuffer = await convertTo7ColorDitheredBMP(processed)
+    const bmpBuffer = await convertTo7ColorDitheredBMP(processed, imageSettings)
 
     const baseName = req.file.originalname.replace(/\.[^/.]+$/, '');
     const fileKey = `${Date.now()}-${baseName}.webp`;
@@ -502,6 +569,15 @@ router.get('/time', async (req: Request, res: Response) => {
     } catch (err) {
       console.error('Invalid token:', err);
       res.status(401).json({ error: 'Invalid token' });
+      return;
+    }
+
+    // Check if user is admin
+    const isAdmin = payload.email === process.env.ADMIN_EMAIL;
+
+    // Admin has no upload limit
+    if (isAdmin) {
+      res.json({ remainingMs: 0 });
       return;
     }
 

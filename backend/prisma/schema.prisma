@@ -42,5 +42,13 @@ model Settings {
   rotationIntervalHours    Int      @default(4)
   defaultImageDurationHours Int     @default(24)
   autoBanEnabled           Boolean  @default(false)
+
+  // Image processing settings
+  ditheringEnabled         Boolean  @default(true)
+  sharpenSigma             Float    @default(1.0)
+  saturationMultiplier     Float    @default(1.15)
+  contrastMultiplier       Float    @default(1.2)
+  gamma                    Float    @default(2.2)
+
   updatedAt                DateTime @updatedAt
 }
