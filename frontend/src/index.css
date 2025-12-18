@@ -149,3 +149,58 @@ button:focus-visible {
     margin: 2% 5%;
   }
 }
+
+/* Footer fijo */
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: var(--color-button-bg);
+  border-top: 2px solid var(--color-border);
+  padding: 8px 0;
+  text-align: center;
+  z-index: 1000;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.footer-link {
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.95em;
+  transition: all 0.3s ease;
+  padding: 8px 20px;
+  border-radius: 6px;
+  display: inline-block;
+  letter-spacing: 0.5px;
+  position: relative;
+  text-transform: uppercase;
+}
+
+.footer-link::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-link), var(--color-link-hover));
+  transform: translateX(-50%);
+  transition: width 0.3s ease;
+}
+
+.footer-link:hover {
+  color: var(--color-link);
+  background-color: var(--color-border);
+  transform: translateY(-2px);
+}
+
+.footer-link:hover::after {
+  width: 80%;
+}
+
+/* Agregar padding al body para que el contenido no quede detrás del footer */
+body {
+  padding-bottom: 30px;
+}

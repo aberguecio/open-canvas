@@ -8,6 +8,7 @@ import FlaggedImages from './pages/FlaggedImages';
 import SettingsPage from './pages/SettingsPage';
 import { useAuth } from './contexts/AuthContext';
 import AdminNav from './components/AdminNav';
+import Footer from './components/Footer';
 
 export default function App() {
   const { isAdmin } = useAuth();
@@ -47,6 +48,8 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+
+      <Footer />
     </div>
   );
 }

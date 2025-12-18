@@ -96,7 +96,7 @@ async function convertTo7ColorDitheredBMP(
   const PALETTE: [number, number, number][] = [
     [255, 255, 255],      // blanco (white)
     [49, 40, 66],         // negro (black)
-    [193, 82, 60],        // rojo (red)rgba(193, 82, 60, 1)
+    [193, 82, 60],        // rojo (red)rgb(193, 82, 60)
     [224, 120, 55],      // naranjo (orange) rgb(224, 120, 55)
     [255, 247, 76],      // amarillo (yellow)rgb(255, 247, 76)
     [62, 128, 77],      // verde (green)rgb(62, 128, 77)
