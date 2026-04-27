@@ -13,7 +13,7 @@ export async function getCroppedImg(
   })
 
   const rotRad = (rotation * Math.PI) / 180
-  const { width: bBoxWidth, height: bBoxHeight } = getRotaedBounds(
+  const { width: bBoxWidth, height: bBoxHeight } = getRotatedBounds(
     image.width,
     image.height,
     rotRad
@@ -31,10 +31,10 @@ export async function getCroppedImg(
   ctx.translate(-image.width / 2, -image.height / 2)
   ctx.drawImage(image, 0, 0)
 
-  // Extrae la región recortada
+  // pixelCrop ya viene en coordenadas del bounding box rotado (react-easy-crop)
   const data = ctx.getImageData(
-    pixelCrop.x + (bBoxWidth - image.width) / 2,
-    pixelCrop.y + (bBoxHeight - image.height) / 2,
+    pixelCrop.x,
+    pixelCrop.y,
     pixelCrop.width,
     pixelCrop.height
   )
@@ -56,7 +56,7 @@ export async function getCroppedImg(
 }
 
 // Calcula los límites de la caja que contiene la imagen tras rotar
-function getRotaedBounds(
+function getRotatedBounds(
   width: number,
   height: number,
   rotation: number
